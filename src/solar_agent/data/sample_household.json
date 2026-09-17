@@ -1,0 +1,14 @@
+{
+  "_comment": "Synthetic example household - not real user data. Used for demos and tests.",
+  "location": { "lat": 47.6740, "lon": -122.1215, "label": "Redmond, WA (example)" },
+  "roof": { "tilt_deg": 30, "azimuth_deg": 180, "shading": "none" },
+  "existing_system": { "panel_count": 12, "panel_rated_w": 400, "inverter_capacity_w": 5000 },
+  "consumption": { "avg_daily_kwh": 28.0, "occupancy": "remote_work_full_time" },
+  "tariff_profile_id": "time_of_use",
+  "appliances": {
+    "dishwasher": 1800,
+    "washing_machine": 500,
+    "clothes_dryer": 3000,
+    "ev_charger_level2": 7200
+  }
+}

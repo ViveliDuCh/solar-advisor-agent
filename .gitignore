@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+*.egg-info/
+.pytest_cache/
+.vscode/
+*.log
+
+# Never commit real personal data (utility bills, addresses, etc.)
+data/private/
+*.bill.pdf
+*.bill.png

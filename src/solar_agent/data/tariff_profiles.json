@@ -1,0 +1,20 @@
+{
+  "flat_rate": {
+    "id": "flat_rate",
+    "name": "Flat rate (example)",
+    "description": "Single flat $/kWh rate, no time-of-use or tiers.",
+    "avg_rate_usd_per_kwh": 0.15
+  },
+  "tiered": {
+    "id": "tiered",
+    "name": "Tiered rate (example)",
+    "description": "Rate increases after a baseline monthly usage tier.",
+    "avg_rate_usd_per_kwh": 0.22
+  },
+  "time_of_use": {
+    "id": "time_of_use",
+    "name": "Time-of-use (example)",
+    "description": "Higher rate 4-9pm on-peak, lower rate overnight/off-peak.",
+    "avg_rate_usd_per_kwh": 0.19
+  }
+}
