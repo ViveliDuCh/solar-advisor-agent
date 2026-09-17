@@ -6,7 +6,7 @@ cares which one is active:
 - ``OpenMeteoProvider``: zero-auth REST, hourly GHI + cloud cover. Used by
   default so the app is demoable on day one.
 - ``AuroraFoundryProvider``: calls Microsoft Aurora on Azure AI Foundry.
-  Requires FOUNDRY_ENDPOINT / FOUNDRY_TOKEN / a blob SAS URL and a prepared
+  Requires AURORA_FOUNDRY_ENDPOINT / AURORA_FOUNDRY_TOKEN / an Aurora blob SAS URL and a prepared
   initial-condition batch (see docs/ARCHITECTURE.md section 2). Stubbed here
   pending Foundry access approval.
 
@@ -87,9 +87,9 @@ class AuroraFoundryProvider:
     """
 
     def __init__(self) -> None:
-        self.endpoint = os.environ.get("FOUNDRY_ENDPOINT")
-        self.token = os.environ.get("FOUNDRY_TOKEN")
-        self.blob_url = os.environ.get("BLOB_URL_WITH_SAS")
+        self.endpoint = os.environ.get("AURORA_FOUNDRY_ENDPOINT")
+        self.token = os.environ.get("AURORA_FOUNDRY_TOKEN")
+        self.blob_url = os.environ.get("AURORA_BLOB_SAS_URL")
 
     async def get_forecast(
         self, lat: float, lon: float, hours: int = 48

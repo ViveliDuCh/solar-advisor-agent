@@ -4,6 +4,7 @@ Deliberately does NOT accept a real uploaded bill (see docs/ARCHITECTURE.md
 section 6, Security & privacy) - callers pass a tariff profile name from
 data/tariff_profiles.json, or synthetic numbers of their own choosing.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,9 @@ def estimate_payback(
     tariff_profile_id: Annotated[
         str, Field(description="One of the ids returned by list_tariff_profiles, e.g. 'flat_rate'")
     ],
-    system_cost_usd: Annotated[float, Field(description="Total installed cost of the system, e.g. from a quote")],
+    system_cost_usd: Annotated[
+        float, Field(description="Total installed cost of the system, e.g. from a quote")
+    ],
     estimated_annual_generation_kwh: Annotated[
         float, Field(description="Estimated annual kWh generated (sum of hourly/daily estimates)")
     ],

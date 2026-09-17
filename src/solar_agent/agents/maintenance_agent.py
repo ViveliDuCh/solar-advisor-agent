@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework import Agent, SupportsChatGetResponse
 from pydantic import Field
 
 from solar_agent.adapters.simulated_inverter_adapter import SimulatedInverterAdapter
+from solar_agent.agent_client import create_chat_client
 
 INSTRUCTIONS = """
 You monitor a household's solar system and tell the homeowner, in plain
@@ -24,7 +24,10 @@ enclosure or touch DC wiring themselves - that's a licensed-electrician task.
 
 
 async def check_inverter_health(
-    panel_rated_w: Annotated[float, Field(description="Total rated wattage of the installed system")],
+    panel_rated_w: Annotated[
+        float,
+        Field(description="Total rated wattage of the installed system"),
+    ],
 ) -> dict:
     """Agent-callable tool: compare current telemetry to expected output.
 
@@ -49,10 +52,12 @@ async def check_inverter_health(
     }
 
 
-def build_maintenance_agent(client: OpenAIChatClient | None = None) -> Agent:
+def build_maintenance_agent(client: SupportsChatGetResponse | None = None) -> Agent:
     return Agent(
-        client=client or OpenAIChatClient(),
+        client=client or create_chat_client(),
         name="MaintenanceAgent",
+        description="Interprets inverter telemetry and possible underperformance.",
         instructions=INSTRUCTIONS,
         tools=[check_inverter_health],
+        require_per_service_call_history_persistence=True,
     )

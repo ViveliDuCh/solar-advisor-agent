@@ -6,7 +6,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import pytest  # noqa: E402
 
 from solar_agent.skills.sizing_skill import estimate_panels_needed  # noqa: E402
-from solar_agent.skills.tariff_payback_skill import estimate_payback, list_tariff_profiles  # noqa: E402
+from solar_agent.skills.tariff_payback_skill import (  # noqa: E402
+    estimate_payback,
+    list_tariff_profiles,
+)
 
 
 def test_sizing_reasonable_panel_count():

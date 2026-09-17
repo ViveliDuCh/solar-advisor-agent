@@ -5,6 +5,7 @@ language reply, mirroring what the corresponding LLM agent in
 solar_agent.agents is instructed to do - so the demo UI shows genuine
 computed numbers even with zero API keys configured.
 """
+
 from __future__ import annotations
 
 import json
@@ -54,7 +55,9 @@ async def forecast_reply(user_message: str, household: dict) -> str:
     forecast = await get_hourly_forecast(
         lat=household["user"]["lat"], lon=household["user"]["lon"], hours=12
     )
-    total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    total_w = (
+        household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    )
     hourly = estimate_hourly_output(
         panel_rated_w=total_w,
         hourly_forecast=forecast,
@@ -66,7 +69,8 @@ async def forecast_reply(user_message: str, household: dict) -> str:
     best_hour = max(hourly, key=lambda h: h["p50_w"])
     lines = [
         f"Next 12h for your {total_w:.0f}W system: peak output ~{best_hour['p50_w']:.0f}W "
-        f"(range {best_hour['p10_w']:.0f}-{best_hour['p90_w']:.0f}W) around {best_hour['timestamp']}.",
+        f"(range {best_hour['p10_w']:.0f}-{best_hour['p90_w']:.0f}W) around "
+        f"{best_hour['timestamp']}.",
         "",
         "Best times to run appliances:",
     ]
@@ -81,12 +85,16 @@ async def forecast_reply(user_message: str, household: dict) -> str:
 
 
 async def maintenance_reply(user_message: str, household: dict) -> str:
-    total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    total_w = (
+        household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    )
     adapter = SimulatedInverterAdapter(panel_rated_w=total_w)
     readings = await adapter.get_current_telemetry()
     reading = readings[0]
     expected_w = await adapter.get_expected_power_w(reading.timestamp)
-    shortfall_pct = max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
+    shortfall_pct = (
+        max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
+    )
 
     if reading.fault_code or shortfall_pct > 20.0:
         return (
@@ -104,7 +112,9 @@ async def maintenance_reply(user_message: str, household: dict) -> str:
 
 
 async def financial_reply(user_message: str, household: dict) -> str:
-    total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    total_w = (
+        household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    )
     # Rough annual estimate from a representative peak-sun-hours figure; a full
     # implementation would sum a year of hourly estimates.
     annual_kwh = (total_w / 1000.0) * 4.2 * 365 * 0.8

@@ -18,7 +18,7 @@ flags, and financial payback — all in plain, non-engineer language.
 1. Request access to `Aurora-1.5` in the Foundry model catalog
    (ai.azure.com/catalog/models/Aurora-1.5) — do this first; approval lag is
    the biggest schedule risk.
-2. Collect `FOUNDRY_ENDPOINT`, `FOUNDRY_TOKEN`, and a Blob container + SAS URL
+2. Collect `AURORA_FOUNDRY_ENDPOINT`, `AURORA_FOUNDRY_TOKEN`, and a Blob container + SAS URL
    (the Foundry Aurora API moves batches through blob storage, not inline).
 3. Aurora needs an **initial atmospheric condition** grid (t=0 and t=-6h:
    temp, wind, pressure, etc.), not just a lat/lon. Sources:
@@ -88,9 +88,11 @@ arithmetic.
 | Financial Agent | Payback/ROI | `tariff_payback_skill` |
 | Safety/Education Agent | Plain-language electrical safety & battery tradeoffs, grounded in a small vetted reference set | — |
 
-Wired as a workflow graph (sequential/handoff): Orchestrator routes →
-specialist calls skill(s) → structured result → Orchestrator phrases the
-answer in plain language.
+Wired with Agent Framework `HandoffBuilder`: SolarAdvisor routes to a
+specialist, the specialist calls deterministic skill(s), and the workflow
+returns a plain-language answer. Streamlit stores an Agent Framework session
+for conversation continuity. When no model is configured, the UI labels and
+uses a deterministic fallback rather than presenting templates as AI.
 
 ## 5. Simulating hardware without giving anything up
 
@@ -110,8 +112,9 @@ examples instead of requiring a bill upload.
 
 - Never persist raw utility bill uploads; only synthetic/example profiles are
   used in the demo.
-- PII redaction middleware strips address/usage data from logs and traces
-  before they reach any observability sink.
+- Email addresses and phone numbers are redacted before live-model requests.
+- The demo tells users not to enter account numbers, exact addresses, payment
+  information, or raw utility statements.
 - Data at rest encrypted (Azure Key Vault + storage encryption), scoped per
   session, opt-in retention.
 - In-app disclaimer: prototype — do not enter real personal financial data.

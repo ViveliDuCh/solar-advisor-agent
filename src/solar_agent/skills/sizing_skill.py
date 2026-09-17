@@ -4,6 +4,7 @@ Peak Sun Hours (PSH) methodology per thegreenwatt.com references:
     Daily panel output (Wh) = Panel rated W x PSH x system derate
     Panels needed = Target daily consumption (Wh) / Daily panel output (Wh)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -26,13 +27,21 @@ class SizingResult:
 
 def estimate_panels_needed(
     avg_daily_consumption_kwh: Annotated[
-        float, Field(description="Average daily household electricity use in kWh, e.g. from a utility bill")
+        float,
+        Field(
+            description="Average daily household electricity use in kWh, e.g. from a utility bill"
+        ),
     ],
     peak_sun_hours: Annotated[
-        float, Field(description="Peak sun hours/day for the location (from forecast/climate averages)")
+        float,
+        Field(description="Peak sun hours/day for the location (from forecast/climate averages)"),
     ],
-    panel_rated_w: Annotated[float, Field(description="Rated wattage per panel (STC)")] = DEFAULT_PANEL_RATED_W,
-    system_derate: Annotated[float, Field(description="System derate, 0.75-0.85 typical")] = DEFAULT_SYSTEM_DERATE,
+    panel_rated_w: Annotated[
+        float, Field(description="Rated wattage per panel (STC)")
+    ] = DEFAULT_PANEL_RATED_W,
+    system_derate: Annotated[
+        float, Field(description="System derate, 0.75-0.85 typical")
+    ] = DEFAULT_SYSTEM_DERATE,
     target_offset_pct: Annotated[
         float, Field(description="Fraction of consumption to offset with solar, e.g. 1.0 = 100%")
     ] = 1.0,
@@ -50,8 +59,9 @@ def estimate_panels_needed(
     explanation = (
         f"Targeting {target_offset_pct:.0%} of {avg_daily_consumption_kwh:.1f} kWh/day average use "
         f"({target_daily_kwh:.1f} kWh/day) at {peak_sun_hours:.1f} peak sun hours/day. Each "
-        f"{panel_rated_w:.0f}W panel produces about {daily_output_per_panel_kwh:.2f} kWh/day after a "
-        f"{system_derate:.0%} system derate (wiring/inverter/soiling loss) -> "
+        f"{panel_rated_w:.0f}W panel produces about "
+        f"{daily_output_per_panel_kwh:.2f} kWh/day after a {system_derate:.0%} system derate "
+        "(wiring/inverter/soiling loss) -> "
         f"{panels_needed} panels ({total_system_w:.0f}W total)."
     )
 

@@ -27,27 +27,42 @@ security, and the Aurora integration decision gate).
 ## Quick start
 
 ```powershell
-py -3.14 -m venv .venv
+py -3.13 -m venv .venv
 .venv\Scripts\activate
-python -m pip install --pre -r requirements.txt
-python -m pip install agent-framework-devui --pre
-python -m solar_agent.orchestrator
+python -m pip install -e ".[dev]"
+streamlit run app.py
 ```
 
-Corporate/proxied pip index (e.g. `packagefeedproxy.microsoft.io`) may not
-mirror these pre-release packages yet. If install fails with
-"No matching distribution found", fall back to public PyPI for just these
-packages:
+The dashboard runs immediately with an explicitly labeled deterministic
+fallback. To activate the real Microsoft Agent Framework workflow, deploy a
+chat model in Microsoft Foundry, authenticate with Azure CLI, and create a
+local `.env`:
+
 ```powershell
-python -m pip install --pre --index-url https://pypi.org/simple agent-framework agent-framework-foundry agent-framework-devui
+az login
+copy .env.example .env
+notepad .env
 ```
+
+Set:
+
+```dotenv
+FOUNDRY_PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>
+FOUNDRY_MODEL=<chat-model-deployment-name>
+```
+
+The dashboard then uses a real Agent Framework handoff workflow:
+`SolarAdvisor` routes to Forecast, Financial, Maintenance, Safety, or Sizing.
+The specialists call deterministic Python skills for watts, kWh, cost, and
+maintenance calculations. Aurora is a separate weather-model integration and
+is not required for conversational chat.
 
 ### Run the tests (no API key needed)
 ```powershell
 python -m pytest tests -q
 ```
 
-### See the UI right now (no API key needed)
+### Legacy FastAPI demo (no model needed)
 ```powershell
 python -m pip install fastapi uvicorn
 python -m solar_agent.web.app
@@ -60,10 +75,9 @@ sizing, payback) is a genuine live call to the real skills (Open-Meteo +
 solar math), not fabricated. This is the fastest way to see what the product
 looks like; swap to the LLM-backed agents below once a key is available.
 
-### Run the full LLM chat UI (needs an LLM key)
+### Optional Agent Framework DevUI
 ```powershell
-copy ui_agents\.env.example ui_agents\.env
-notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
+python -m pip install -e ".[devui]"
 devui ui_agents --port 8080
 ```
 If `devui` isn't recognized (its console-script exe isn't on PATH), call the
@@ -93,6 +107,9 @@ docs/ARCHITECTURE.md
 
 ## Status
 
-Hackathon scaffold — skills have working deterministic logic, agents are stubbed
-with instructions + tool wiring pending an LLM client (Azure OpenAI / Foundry)
-credential.
+The repository contains a working Agent Framework handoff workflow and a
+Streamlit dashboard. Without Foundry configuration the UI uses an explicit
+local fallback; with `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL`, the same
+chat invokes the live multi-agent workflow. Forecast data remains synthetic
+in the dashboard until a live provider is enabled, and Aurora remains a
+documented future integration.

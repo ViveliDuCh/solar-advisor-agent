@@ -1,9 +1,9 @@
 """Forecast/Optimization Agent: hourly output + appliance-timing suggestions."""
 from __future__ import annotations
 
-from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework import Agent, SupportsChatGetResponse
 
+from solar_agent.agent_client import create_chat_client
 from solar_agent.skills.appliance_scheduler_skill import suggest_appliance_windows
 from solar_agent.skills.solar_output_skill import estimate_hourly_output
 from solar_agent.skills.weather_forecast_skill import get_hourly_forecast
@@ -21,10 +21,12 @@ invent wattage or irradiance figures yourself.
 """
 
 
-def build_forecast_agent(client: OpenAIChatClient | None = None) -> Agent:
+def build_forecast_agent(client: SupportsChatGetResponse | None = None) -> Agent:
     return Agent(
-        client=client or OpenAIChatClient(),
+        client=client or create_chat_client(),
         name="ForecastAgent",
+        description="Forecasts solar output and recommends appliance timing.",
         instructions=INSTRUCTIONS,
         tools=[get_hourly_forecast, estimate_hourly_output, suggest_appliance_windows],
+        require_per_service_call_history_persistence=True,
     )

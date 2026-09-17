@@ -5,10 +5,11 @@ and occasional faults, so Maintenance/Notification agents run against a
 believable stream. Swap for a RealSolarEdgeAdapter (same DeviceAdapter
 interface) once vendor developer credentials are available.
 """
+
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from solar_agent.adapters.device_adapter import Telemetry
 from solar_agent.skills.solar_output_skill import estimate_output_w
@@ -46,7 +47,7 @@ class SimulatedInverterAdapter:
 
         return [
             Telemetry(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 power_w=round(actual_w, 1),
                 panel_id="array-1",
                 fault_code=fault_code,

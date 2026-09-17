@@ -3,6 +3,7 @@
 Consumes the output of solar_output_skill.estimate_hourly_output plus a list
 of appliance loads and suggests the best windows to run high-draw appliances.
 """
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -21,13 +22,21 @@ DEFAULT_APPLIANCE_LIBRARY = {
 
 def suggest_appliance_windows(
     hourly_output: Annotated[
-        list[dict], Field(description="Output of estimate_hourly_output: list of {timestamp, p50_w, ...}")
+        list[dict],
+        Field(description="Output of estimate_hourly_output: list of {timestamp, p50_w, ...}"),
     ],
     appliance_watts: Annotated[
         dict[str, float],
-        Field(description="Appliance name -> running watts, defaults to DEFAULT_APPLIANCE_LIBRARY if omitted"),
+        Field(
+            description=(
+                "Appliance name -> running watts; defaults to "
+                "DEFAULT_APPLIANCE_LIBRARY when omitted"
+            )
+        ),
     ] = None,
-    top_n_windows: Annotated[int, Field(description="How many best hours to suggest per appliance")] = 2,
+    top_n_windows: Annotated[
+        int, Field(description="How many best hours to suggest per appliance")
+    ] = 2,
 ) -> list[dict]:
     """Agent-callable tool: best hours to run each appliance this forecast window."""
     appliances = appliance_watts or DEFAULT_APPLIANCE_LIBRARY
@@ -39,7 +48,9 @@ def suggest_appliance_windows(
         windows = []
         for hour in ranked:
             coverage_pct = min(100.0, (hour["p50_w"] / watts) * 100.0) if watts > 0 else 0.0
-            windows.append({"timestamp": hour["timestamp"], "solar_coverage_pct": round(coverage_pct, 0)})
+            windows.append(
+                {"timestamp": hour["timestamp"], "solar_coverage_pct": round(coverage_pct, 0)}
+            )
         suggestions.append(
             {
                 "appliance": name,
