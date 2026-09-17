@@ -1,4 +1,5 @@
 let currentAgent = "sizing";
+let chart = null;
 
 async function loadAgents() {
   const res = await fetch("/api/agents");
@@ -32,6 +33,80 @@ async function loadUser() {
     `~${u.consumption.avg_daily_kwh} kWh/day (synthetic demo data)`;
 }
 
+async function loadDashboard() {
+  const res = await fetch("/api/dashboard");
+  const d = await res.json();
+
+  const healthEl = document.getElementById("val-health");
+  healthEl.textContent = d.health_status === "ok" ? "Healthy" : "Needs attention";
+  healthEl.className = "card-value " + d.health_status;
+  document.getElementById("sub-health").textContent = d.fault_code || "";
+
+  document.getElementById("val-current").textContent = `${d.current_output_w.toFixed(0)} W`;
+  document.getElementById("sub-current").textContent = `expected ~${d.expected_output_w.toFixed(0)} W`;
+
+  document.getElementById("val-panels").textContent = d.panels_needed;
+
+  document.getElementById("val-payback").textContent = `${d.payback_years.toFixed(1)} yrs`;
+  document.getElementById("sub-payback").textContent = `~$${d.annual_savings_usd.toFixed(0)}/yr savings`;
+
+  renderChart(d.hourly);
+}
+
+function renderChart(hourly) {
+  const labels = hourly.map((h) => new Date(h.timestamp).toLocaleTimeString([], { hour: "numeric" }));
+  const p10 = hourly.map((h) => h.p10_w);
+  const p50 = hourly.map((h) => h.p50_w);
+  const p90 = hourly.map((h) => h.p90_w);
+
+  const ctx = document.getElementById("output-chart");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "P90 (optimistic)",
+          data: p90,
+          borderColor: "rgba(108,92,231,0.15)",
+          backgroundColor: "rgba(108,92,231,0.12)",
+          fill: "+1",
+          pointRadius: 0,
+          tension: 0.3,
+        },
+        {
+          label: "P50 (expected)",
+          data: p50,
+          borderColor: "#6c5ce7",
+          backgroundColor: "rgba(108,92,231,0.25)",
+          fill: false,
+          pointRadius: 0,
+          tension: 0.3,
+          borderWidth: 2,
+        },
+        {
+          label: "P10 (conservative)",
+          data: p10,
+          borderColor: "rgba(108,92,231,0.15)",
+          backgroundColor: "rgba(108,92,231,0.12)",
+          fill: false,
+          pointRadius: 0,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: "#9a9aab" } } },
+      scales: {
+        x: { ticks: { color: "#9a9aab" }, grid: { color: "#2a2a35" } },
+        y: { ticks: { color: "#9a9aab" }, grid: { color: "#2a2a35" }, title: { display: true, text: "Watts", color: "#9a9aab" } },
+      },
+    },
+  });
+}
+
 function addMessage(text, who) {
   const el = document.createElement("div");
   el.className = "msg " + who;
@@ -61,3 +136,4 @@ document.getElementById("chat-form").addEventListener("submit", async (e) => {
 
 loadAgents();
 loadUser();
+loadDashboard();

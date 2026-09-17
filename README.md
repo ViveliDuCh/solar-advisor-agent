@@ -9,7 +9,8 @@ Built on [Microsoft Agent Framework](https://github.com/microsoft/agent-framewor
 ready.
 
 See `docs/ARCHITECTURE.md` for the full design doc (agents, skills, data flow,
-security, and the Aurora integration decision gate).
+security, and the Aurora integration decision gate), and `docs/USER_MANUAL.md`
+for step-by-step run instructions and troubleshooting.
 
 ## Requirements
 

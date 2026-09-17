@@ -146,3 +146,58 @@ REPLY_FUNCS = {
     "financial": financial_reply,
     "safety": safety_reply,
 }
+
+
+async def build_dashboard(household: dict) -> dict:
+    """Structured summary for the graphical dashboard (cards + chart).
+
+    Reuses the same skills as the chat replies above - one source of truth
+    for numbers shown in either surface.
+    """
+    total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+
+    forecast = await get_hourly_forecast(
+        lat=household["user"]["lat"], lon=household["user"]["lon"], hours=24
+    )
+    hourly = estimate_hourly_output(
+        panel_rated_w=total_w,
+        hourly_forecast=forecast,
+        panel_tilt_deg=household["roof"]["tilt_deg"],
+        panel_azimuth_deg=household["roof"]["azimuth_deg"],
+    )
+
+    daylight = [h for h in forecast if h["ghi_w_m2"] > 0]
+    peak_sun_hours = (sum(h["ghi_w_m2"] for h in daylight) / 1000.0) if daylight else 4.0
+    sizing = estimate_panels_needed(
+        avg_daily_consumption_kwh=household["consumption"]["avg_daily_kwh"],
+        peak_sun_hours=max(peak_sun_hours, 2.5),
+        panel_rated_w=household["existing_system"]["panel_rated_w"],
+    )
+
+    annual_kwh = (total_w / 1000.0) * 4.2 * 365 * 0.8
+    payback = estimate_payback(
+        tariff_profile_id=household["tariff_profile_id"],
+        system_cost_usd=household["system_cost_usd"],
+        estimated_annual_generation_kwh=annual_kwh,
+    )
+
+    adapter = SimulatedInverterAdapter(panel_rated_w=total_w)
+    readings = await adapter.get_current_telemetry()
+    reading = readings[0]
+    expected_w = await adapter.get_expected_power_w(reading.timestamp)
+    shortfall_pct = max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
+    healthy = not (reading.fault_code or shortfall_pct > 20.0)
+
+    return {
+        "total_system_w": total_w,
+        "current_output_w": reading.power_w,
+        "expected_output_w": round(expected_w, 1),
+        "health_status": "ok" if healthy else "attention",
+        "fault_code": reading.fault_code,
+        "panels_needed": sizing["panels_needed"],
+        "panels_needed_explanation": sizing["explanation"],
+        "annual_savings_usd": payback["annual_savings_usd"],
+        "payback_years": payback["payback_years"],
+        "hourly": hourly,
+    }
+

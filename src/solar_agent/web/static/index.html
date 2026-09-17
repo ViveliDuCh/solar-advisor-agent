@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Solar Advisor - Demo UI</title>
 <link rel="stylesheet" href="/static/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
   <div class="app">
@@ -18,12 +19,43 @@
         Aurora 1.5 (Foundry): <span class="pending">pending access</span>
       </div>
     </aside>
-    <main class="chat">
-      <div id="messages" class="messages"></div>
-      <form id="chat-form" class="chat-form">
-        <input id="message-input" type="text" placeholder="Ask a question…" autocomplete="off" />
-        <button type="submit">Send</button>
-      </form>
+
+    <main class="main">
+      <section class="dashboard" id="dashboard">
+        <div class="card" id="card-health">
+          <div class="card-label">System Health</div>
+          <div class="card-value" id="val-health">…</div>
+          <div class="card-sub" id="sub-health"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Current Output</div>
+          <div class="card-value" id="val-current">…</div>
+          <div class="card-sub" id="sub-current"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Panels Recommended</div>
+          <div class="card-value" id="val-panels">…</div>
+          <div class="card-sub">for full offset of daily use</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Payback Estimate</div>
+          <div class="card-value" id="val-payback">…</div>
+          <div class="card-sub" id="sub-payback"></div>
+        </div>
+      </section>
+
+      <section class="chart-section">
+        <h2>Next 24h forecast output (P10-P90 band)</h2>
+        <canvas id="output-chart" height="90"></canvas>
+      </section>
+
+      <section class="chat">
+        <div id="messages" class="messages"></div>
+        <form id="chat-form" class="chat-form">
+          <input id="message-input" type="text" placeholder="Ask a question…" autocomplete="off" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
     </main>
   </div>
   <script src="/static/app.js"></script>
