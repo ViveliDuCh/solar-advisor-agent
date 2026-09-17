@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from solar_agent.web.dummy_responses import REPLY_FUNCS, load_sample_user
+from solar_agent.web.dummy_responses import REPLY_FUNCS, build_dashboard, load_sample_user
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -48,6 +48,12 @@ async def list_agents() -> list[dict]:
 async def get_user() -> dict:
     """The synthetic demo household (Alex Rivera) - no real user data."""
     return load_sample_user()
+
+
+@app.get("/api/dashboard")
+async def dashboard() -> dict:
+    household = load_sample_user()
+    return await build_dashboard(household)
 
 
 @app.post("/api/chat")
