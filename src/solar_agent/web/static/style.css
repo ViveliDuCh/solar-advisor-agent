@@ -50,6 +50,7 @@ body {
 .weather-source { margin-top: 10px; font-size: 11px; color: var(--muted); }
 .pending { color: #e0a75e; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.scroll-panel { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -145,8 +146,21 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.chat { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.messages { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.chat {
+  flex: 0 0 340px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid #2a2a35;
+  background: var(--bg);
+}
+.chat-heading {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 14px 24px 0;
+}
+.messages { flex: 1; overflow-y: auto; padding: 12px 24px 20px; display: flex; flex-direction: column; gap: 14px; }
 .msg { max-width: 640px; padding: 12px 16px; border-radius: 10px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
 .msg.user { align-self: flex-end; background: var(--accent); }
 .msg.agent { align-self: flex-start; background: var(--panel); border: 1px solid #2a2a35; }

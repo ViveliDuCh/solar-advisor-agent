@@ -23,6 +23,7 @@
     </aside>
 
     <main class="main">
+     <div class="scroll-panel">
       <section class="dashboard" id="dashboard">
         <div class="card" id="card-health">
           <div class="card-label">System Health
@@ -72,8 +73,12 @@
         </h2>
         <div class="appliance-list" id="appliance-list"></div>
       </section>
+     </div>
 
       <section class="chat">
+        <h2 class="chat-heading">Ask the agents
+          <span class="info-icon" data-tooltip="Chat with the 5 demo agents (Sizing, Forecast, Maintenance, Financial, Safety) selectable in the sidebar. Replies are rule-based templates, but the numbers come from the real skills.">i</span>
+        </h2>
         <div id="messages" class="messages"></div>
         <form id="chat-form" class="chat-form">
           <input id="message-input" type="text" placeholder="Ask a question…" autocomplete="off" />
