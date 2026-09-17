@@ -53,13 +53,24 @@ python -m pytest tests -q
 python -m pip install fastapi uvicorn
 python -m solar_agent.web.app
 ```
-Opens `http://127.0.0.1:8000` - a chat UI with the same 5 agents (Sizing,
-Forecast, Maintenance, Financial, Safety) against a made-up demo household
-("Alex Rivera", Redmond WA - synthetic, no real data). Replies are
-**rule-based templates, not an LLM** - but every number (forecast, watts,
-sizing, payback) is a genuine live call to the real skills (Open-Meteo +
-solar math), not fabricated. This is the fastest way to see what the product
-looks like; swap to the LLM-backed agents below once a key is available.
+Opens `http://127.0.0.1:8000` - a graphical dashboard (all power figures in
+**kW**) plus a chat panel with the same 5 agents (Sizing, Forecast,
+Maintenance, Financial, Safety), against a made-up demo household
+("Alex Rivera", Redmond WA - synthetic, no real data):
+- 4 stat cards (System Health, Current Output, Panels Recommended, Payback)
+- a color-coded **bar chart** of the next 24h expected output per hour -
+  green = peak sun hour, amber = medium, gray = low/night - hover a bar for
+  the low/high estimate range
+- an **Appliances** section with 3-4 common devices, their draw in kW, and a
+  colored Low/Medium/High usage tag
+- hover the **ⓘ** icon next to any card, chart, or section heading for a
+  plain-language explanation of that term
+
+Replies are **rule-based templates, not an LLM** - but every number
+(forecast, kW, sizing, payback) is a genuine live call to the real skills
+(Open-Meteo + solar math), not fabricated. This is the fastest way to see
+what the product looks like; swap to the LLM-backed agents below once a key
+is available.
 
 ### Run the full LLM chat UI (needs an LLM key)
 ```powershell

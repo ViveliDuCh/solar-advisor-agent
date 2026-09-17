@@ -42,8 +42,8 @@ async function loadDashboard() {
   healthEl.className = "card-value " + d.health_status;
   document.getElementById("sub-health").textContent = d.fault_code || "";
 
-  document.getElementById("val-current").textContent = `${d.current_output_w.toFixed(0)} W`;
-  document.getElementById("sub-current").textContent = `expected ~${d.expected_output_w.toFixed(0)} W`;
+  document.getElementById("val-current").textContent = `${d.current_output_kw.toFixed(2)} kW`;
+  document.getElementById("sub-current").textContent = `expected ~${d.expected_output_kw.toFixed(2)} kW`;
 
   document.getElementById("val-panels").textContent = d.panels_needed;
 
@@ -51,59 +51,73 @@ async function loadDashboard() {
   document.getElementById("sub-payback").textContent = `~$${d.annual_savings_usd.toFixed(0)}/yr savings`;
 
   renderChart(d.hourly);
+  renderAppliances(d.appliances);
 }
+
+const TIER_COLORS = {
+  peak: "#4ade80",
+  medium: "#e0a75e",
+  low: "#5b6472",
+  none: "#3a3a45",
+};
 
 function renderChart(hourly) {
   const labels = hourly.map((h) => new Date(h.timestamp).toLocaleTimeString([], { hour: "numeric" }));
-  const p10 = hourly.map((h) => h.p10_w);
-  const p50 = hourly.map((h) => h.p50_w);
-  const p90 = hourly.map((h) => h.p90_w);
+  const p50 = hourly.map((h) => h.p50_kw);
+  const barColors = hourly.map((h) => TIER_COLORS[h.tier] || TIER_COLORS.none);
+  const ranges = hourly.map((h) => `${h.p10_kw.toFixed(2)}-${h.p90_kw.toFixed(2)} kW range`);
 
   const ctx = document.getElementById("output-chart");
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [
         {
-          label: "P90 (optimistic)",
-          data: p90,
-          borderColor: "rgba(108,92,231,0.15)",
-          backgroundColor: "rgba(108,92,231,0.12)",
-          fill: "+1",
-          pointRadius: 0,
-          tension: 0.3,
-        },
-        {
-          label: "P50 (expected)",
+          label: "Expected output (kW)",
           data: p50,
-          borderColor: "#6c5ce7",
-          backgroundColor: "rgba(108,92,231,0.25)",
-          fill: false,
-          pointRadius: 0,
-          tension: 0.3,
-          borderWidth: 2,
-        },
-        {
-          label: "P10 (conservative)",
-          data: p10,
-          borderColor: "rgba(108,92,231,0.15)",
-          backgroundColor: "rgba(108,92,231,0.12)",
-          fill: false,
-          pointRadius: 0,
-          tension: 0.3,
+          backgroundColor: barColors,
+          borderRadius: 4,
+          barPercentage: 0.85,
         },
       ],
     },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { color: "#9a9aab" } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (item) => ranges[item.dataIndex],
+          },
+        },
+      },
       scales: {
-        x: { ticks: { color: "#9a9aab" }, grid: { color: "#2a2a35" } },
-        y: { ticks: { color: "#9a9aab" }, grid: { color: "#2a2a35" }, title: { display: true, text: "Watts", color: "#9a9aab" } },
+        x: { ticks: { color: "#9a9aab" }, grid: { display: false } },
+        y: {
+          ticks: { color: "#9a9aab" },
+          grid: { color: "#2a2a35" },
+          title: { display: true, text: "kW", color: "#9a9aab" },
+          beginAtZero: true,
+        },
       },
     },
+  });
+}
+
+function renderAppliances(appliances) {
+  const el = document.getElementById("appliance-list");
+  if (!appliances) return;
+  el.innerHTML = "";
+  appliances.forEach((a) => {
+    const card = document.createElement("div");
+    card.className = "appliance-card";
+    card.innerHTML =
+      `<div class="appliance-name">${a.name}</div>` +
+      `<div class="appliance-kw">${a.kw.toFixed(2)} kW</div>` +
+      `<span class="appliance-tag" style="background:${a.color}22;color:${a.color};border:1px solid ${a.color}66;">${a.tier}</span>`;
+    el.appendChild(card);
   });
 }
 

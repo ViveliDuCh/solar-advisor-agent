@@ -53,8 +53,9 @@ $env:PYTHONPATH = "src"
 python -m solar_agent.web.app
 ```
 Open **http://127.0.0.1:8000**. You'll see:
-- **4 summary cards**: System Health, Current Output, Panels Recommended, Payback Estimate
-- **A 24h forecast chart** with a P10–P90 uncertainty band around the expected (P50) output
+- **4 summary cards**: System Health, Current Output, Panels Recommended, Payback Estimate (all in kW / $) — hover the **ⓘ** next to each label for a plain-language explanation
+- **A 24h output bar chart**: one green/amber/gray bar per hour (green = peak sun hour, amber = medium, gray = low/night); hover a bar for its low–high (P10–P90) estimate range
+- **An Appliances section**: 3-4 common devices (dishwasher, washing machine, dryer, EV charger) with their draw in kW and a colored Low/Medium/High usage tag
 - **A chat panel** with 5 selectable agents (Sizing, Forecast, Maintenance, Financial, Safety) for Q&A
 
 All numbers come from a synthetic demo household ("Alex Rivera", Redmond WA

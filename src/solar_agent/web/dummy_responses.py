@@ -38,11 +38,12 @@ async def sizing_reply(user_message: str, household: dict) -> str:
         peak_sun_hours=max(peak_sun_hours, 2.5),
         panel_rated_w=household["existing_system"]["panel_rated_w"],
     )
+    total_kw = result["total_system_w"] / 1000.0
     return (
         f"For {household['user']['name']} in {household['user']['location_label']} "
         f"(~{household['consumption']['avg_daily_kwh']:.0f} kWh/day, "
         f"~{peak_sun_hours:.1f} peak sun hours today):\n\n"
-        f"**{result['panels_needed']} panels** ({result['total_system_w']:.0f}W total) "
+        f"**{result['panels_needed']} panels** ({total_kw:.1f} kW total) "
         f"would offset that usage.\n\n{result['explanation']}\n\n"
         "DIY note: panel mounting/wiring on the DC side and grid interconnection "
         "require a licensed electrician and utility permit in virtually all US "
@@ -65,8 +66,10 @@ async def forecast_reply(user_message: str, household: dict) -> str:
 
     best_hour = max(hourly, key=lambda h: h["p50_w"])
     lines = [
-        f"Next 12h for your {total_w:.0f}W system: peak output ~{best_hour['p50_w']:.0f}W "
-        f"(range {best_hour['p10_w']:.0f}-{best_hour['p90_w']:.0f}W) around {best_hour['timestamp']}.",
+        f"Next 12h for your {total_w / 1000.0:.1f} kW system: peak output "
+        f"~{best_hour['p50_w'] / 1000.0:.2f} kW "
+        f"(range {best_hour['p10_w'] / 1000.0:.2f}-{best_hour['p90_w'] / 1000.0:.2f} kW) "
+        f"around {best_hour['timestamp']}.",
         "",
         "Best times to run appliances:",
     ]
@@ -88,17 +91,19 @@ async def maintenance_reply(user_message: str, household: dict) -> str:
     expected_w = await adapter.get_expected_power_w(reading.timestamp)
     shortfall_pct = max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
 
+    actual_kw = reading.power_w / 1000.0
+    expected_kw = expected_w / 1000.0
     if reading.fault_code or shortfall_pct > 20.0:
         return (
-            f"⚠️ Your system is producing {reading.power_w:.0f}W vs. an expected "
-            f"~{expected_w:.0f}W ({shortfall_pct:.0f}% shortfall)"
+            f"⚠️ Your system is producing {actual_kw:.2f} kW vs. an expected "
+            f"~{expected_kw:.2f} kW ({shortfall_pct:.0f}% shortfall)"
             + (f", flagged as **{reading.fault_code}**." if reading.fault_code else ".")
             + " Common causes: soiling (dust/pollen) or partial shading - check for "
             "shadows from new tree growth or debris. If cleaning doesn't help within "
             "a few days, contact a licensed installer; do not open the inverter enclosure yourself."
         )
     return (
-        f"✅ Producing {reading.power_w:.0f}W vs. an expected ~{expected_w:.0f}W - "
+        f"✅ Producing {actual_kw:.2f} kW vs. an expected ~{expected_kw:.2f} kW - "
         "within normal range, no maintenance needed right now."
     )
 
@@ -114,7 +119,7 @@ async def financial_reply(user_message: str, household: dict) -> str:
         estimated_annual_generation_kwh=annual_kwh,
     )
     return (
-        f"Estimated **{annual_kwh:.0f} kWh/year** from your {total_w:.0f}W system.\n\n"
+        f"Estimated **{annual_kwh:.0f} kWh/year** from your {total_w / 1000.0:.1f} kW system.\n\n"
         f"{result['explanation']}"
     )
 
@@ -148,11 +153,27 @@ REPLY_FUNCS = {
 }
 
 
+_APPLIANCE_TIERS = [
+    (2500, "high", "#f87171"),
+    (800, "medium", "#e0a75e"),
+    (0, "low", "#4ade80"),
+]
+
+
+def _appliance_tier(watts: float) -> tuple[str, str]:
+    for threshold, tier, color in _APPLIANCE_TIERS:
+        if watts >= threshold:
+            return tier, color
+    return "low", "#4ade80"
+
+
 async def build_dashboard(household: dict) -> dict:
     """Structured summary for the graphical dashboard (cards + chart).
 
     Reuses the same skills as the chat replies above - one source of truth
-    for numbers shown in either surface.
+    for numbers shown in either surface. All power figures are in kW
+    (kilowatts) to match how solar systems and appliances are normally
+    labeled/rated.
     """
     total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
 
@@ -165,6 +186,30 @@ async def build_dashboard(household: dict) -> dict:
         panel_tilt_deg=household["roof"]["tilt_deg"],
         panel_azimuth_deg=household["roof"]["azimuth_deg"],
     )
+    max_p50_w = max((h["p50_w"] for h in hourly), default=0.0)
+
+    def _tier_for_hour(p50_w: float) -> str:
+        if max_p50_w <= 0:
+            return "none"
+        ratio = p50_w / max_p50_w
+        if ratio >= 0.66:
+            return "peak"
+        if ratio >= 0.33:
+            return "medium"
+        if p50_w > 0:
+            return "low"
+        return "none"
+
+    hourly_kw = [
+        {
+            "timestamp": h["timestamp"],
+            "p10_kw": round(h["p10_w"] / 1000.0, 3),
+            "p50_kw": round(h["p50_w"] / 1000.0, 3),
+            "p90_kw": round(h["p90_w"] / 1000.0, 3),
+            "tier": _tier_for_hour(h["p50_w"]),
+        }
+        for h in hourly
+    ]
 
     daylight = [h for h in forecast if h["ghi_w_m2"] > 0]
     peak_sun_hours = (sum(h["ghi_w_m2"] for h in daylight) / 1000.0) if daylight else 4.0
@@ -188,16 +233,32 @@ async def build_dashboard(household: dict) -> dict:
     shortfall_pct = max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
     healthy = not (reading.fault_code or shortfall_pct > 20.0)
 
+    _display_names = {
+        "ev_charger_level2": "EV Charger (Level 2)",
+    }
+    appliances = []
+    for name, watts in household["appliances"].items():
+        tier, color = _appliance_tier(watts)
+        appliances.append(
+            {
+                "name": _display_names.get(name, name.replace("_", " ").title()),
+                "kw": round(watts / 1000.0, 2),
+                "tier": tier,
+                "color": color,
+            }
+        )
+
     return {
-        "total_system_w": total_w,
-        "current_output_w": reading.power_w,
-        "expected_output_w": round(expected_w, 1),
+        "total_system_kw": round(total_w / 1000.0, 2),
+        "current_output_kw": round(reading.power_w / 1000.0, 2),
+        "expected_output_kw": round(expected_w / 1000.0, 2),
         "health_status": "ok" if healthy else "attention",
         "fault_code": reading.fault_code,
         "panels_needed": sizing["panels_needed"],
         "panels_needed_explanation": sizing["explanation"],
         "annual_savings_usd": payback["annual_savings_usd"],
         "payback_years": payback["payback_years"],
-        "hourly": hourly,
+        "hourly": hourly_kw,
+        "appliances": appliances,
     }
 

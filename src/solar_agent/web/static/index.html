@@ -15,7 +15,9 @@
       <div id="agent-list" class="agent-list"></div>
       <div class="user-card" id="user-card">Loading demo household…</div>
       <div class="weather-source">
-        Weather source: <strong>Open-Meteo</strong> (live)<br/>
+        Weather source: <strong>Open-Meteo</strong> (live)
+        <span class="info-icon" data-tooltip="Live hourly weather forecast (sunlight, cloud cover, temperature) used to estimate solar output. Microsoft Aurora integration is wired but pending Azure Foundry access - see docs/ARCHITECTURE.md.">i</span>
+        <br/>
         Aurora 1.5 (Foundry): <span class="pending">pending access</span>
       </div>
     </aside>
@@ -23,30 +25,52 @@
     <main class="main">
       <section class="dashboard" id="dashboard">
         <div class="card" id="card-health">
-          <div class="card-label">System Health</div>
+          <div class="card-label">System Health
+            <span class="info-icon" data-tooltip="Compares your system's current output to what it should be producing right now given the weather. Flags soiling, shading, or inverter faults.">i</span>
+          </div>
           <div class="card-value" id="val-health">…</div>
           <div class="card-sub" id="sub-health"></div>
         </div>
         <div class="card">
-          <div class="card-label">Current Output</div>
+          <div class="card-label">Current Output
+            <span class="info-icon" data-tooltip="Instantaneous power your panels are producing right now, in kilowatts (kW). 1 kW = 1000 watts.">i</span>
+          </div>
           <div class="card-value" id="val-current">…</div>
           <div class="card-sub" id="sub-current"></div>
         </div>
         <div class="card">
-          <div class="card-label">Panels Recommended</div>
+          <div class="card-label">Panels Recommended
+            <span class="info-icon" data-tooltip="How many panels would fully offset your average daily electricity use, based on today's peak sun hours (the number of hours of sunlight strong enough to count as 'full sun').">i</span>
+          </div>
           <div class="card-value" id="val-panels">…</div>
           <div class="card-sub">for full offset of daily use</div>
         </div>
         <div class="card">
-          <div class="card-label">Payback Estimate</div>
+          <div class="card-label">Payback Estimate
+            <span class="info-icon" data-tooltip="How many years of electricity-bill savings it takes to recover the system's upfront cost. A simplified estimate: ignores panel aging and rate changes.">i</span>
+          </div>
           <div class="card-value" id="val-payback">…</div>
           <div class="card-sub" id="sub-payback"></div>
         </div>
       </section>
 
       <section class="chart-section">
-        <h2>Next 24h forecast output (P10-P90 band)</h2>
+        <h2>Next 24h output by hour (kW)
+          <span class="info-icon" data-tooltip="Each bar is your expected output that hour. Green = peak sun hours (best time to run high-power appliances), amber = medium output, gray = low/no output (night or heavy cloud). Hover a bar for the low-to-high estimate range.">i</span>
+        </h2>
         <canvas id="output-chart" height="90"></canvas>
+        <div class="legend">
+          <span><i class="dot peak"></i> Peak sun</span>
+          <span><i class="dot medium"></i> Medium</span>
+          <span><i class="dot low"></i> Low / night</span>
+        </div>
+      </section>
+
+      <section class="appliances-section">
+        <h2>Appliance usage (kW)
+          <span class="info-icon" data-tooltip="Typical running power draw for common household appliances. Usage tag reflects how much of a hit that appliance takes on your solar output when running: Low, Medium, or High draw.">i</span>
+        </h2>
+        <div class="appliance-list" id="appliance-list"></div>
       </section>
 
       <section class="chat">
