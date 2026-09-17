@@ -53,8 +53,16 @@ copy ui_agents\.env.example ui_agents\.env
 notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
 devui ui_agents --port 8080
 ```
+If `devui` isn't recognized (its console-script exe isn't on PATH), call the
+CLI's `main()` directly instead - this always works once the package is
+installed:
+```powershell
+python -c "import sys; sys.argv=['devui','ui_agents','--port','8080']; from agent_framework_devui._cli import main; main()"
+```
 Opens `http://localhost:8080` with all 5 agents (Sizing, Forecast,
-Maintenance, Financial, Safety) selectable in the sidebar.
+Maintenance, Financial, Safety) selectable in the sidebar. DevUI prints an
+auth token at startup - pass it as `Authorization: Bearer <token>` for direct
+API calls, or use `--no-auth` for local-only loopback testing.
 
 ## Layout
 
