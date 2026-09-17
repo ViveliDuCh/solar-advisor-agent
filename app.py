@@ -10,11 +10,11 @@ import streamlit as st
 from agent_framework import AgentSession
 
 from solar_agent.agent_client import agent_framework_mode
-from solar_agent.core.advisor import explain_recommendations
 from solar_agent.core.chat import AdvisorContext, answer_question
-from solar_agent.core.demo import demo_appliances, demo_battery, demo_household
+from solar_agent.core.demo import demo_appliances, demo_household
 from solar_agent.core.energy import (
     TIMEZONE,
+    classify_appliance_usage,
     energy_flows,
     estimate_solar_power,
     household_load_profile,
@@ -33,44 +33,6 @@ st.set_page_config(page_title="Solar Advisor AI", page_icon="☀️", layout="wi
 def format_clock(value: pd.Timestamp, include_day: bool = False) -> str:
     pattern = "%a %I:%M %p" if include_day else "%I:%M %p"
     return value.strftime(pattern).replace(" 0", " ").lstrip("0")
-
-
-def render_sankey(flows: dict[str, float], title: str) -> go.Figure:
-    labels = ["Solar", "Grid", "Battery", "Home", "Export"]
-    figure = go.Figure(
-        go.Sankey(
-            node={
-                "label": labels,
-                "color": ["#efb64c", "#57a5ff", "#bb87ff", "#00e6a7", "#8a97a6"],
-                "pad": 18,
-                "thickness": 22,
-            },
-            link={
-                "source": [0, 0, 0, 1, 2],
-                "target": [3, 4, 2, 3, 3],
-                "value": [
-                    flows["solar_to_home"],
-                    flows["solar_to_grid"],
-                    flows["solar_to_battery"],
-                    flows["grid_to_home"],
-                    flows["battery_to_home"],
-                ],
-                "color": [
-                    "rgba(239,182,76,.55)",
-                    "rgba(138,151,166,.35)",
-                    "rgba(187,135,255,.45)",
-                    "rgba(87,165,255,.45)",
-                    "rgba(187,135,255,.55)",
-                ],
-            },
-        )
-    )
-    figure.update_layout(
-        title=title,
-        height=390,
-        margin={"l": 10, "r": 10, "t": 50, "b": 10},
-    )
-    return figure
 
 
 def render_advisor_chat(context: AdvisorContext) -> None:
@@ -334,16 +296,9 @@ telemetry = simulate_inverter_telemetry(
 )
 maintenance = diagnose_maintenance(telemetry)
 
-baseline_flows = energy_flows(frame["solar_expected_kw"], frame["base_load_kw"])
 optimized_flows = energy_flows(frame["solar_expected_kw"], frame["optimized_load_kw"])
-battery_flows = energy_flows(
-    frame["solar_expected_kw"],
-    frame["optimized_load_kw"],
-    demo_battery(),
-)
 
 forecast_energy = float(frame["solar_expected_kw"].sum())
-forecast_load = float(frame["optimized_load_kw"].sum())
 direct_use = optimized_flows["solar_to_home"] / max(forecast_energy, 0.001)
 annual_production = forecast_energy / 2 * 365
 finance = simple_financial_estimate(
@@ -358,7 +313,7 @@ advisor_context = AdvisorContext(
     system_capacity_kw=system.dc_capacity_kw,
     electricity_rate=electricity_rate,
     simple_payback_years=float(finance["simple_payback_years"]),
-    forecast_confidence="medium",
+    forecast_confidence="low — demonstration only",
 )
 
 st.warning(
@@ -388,7 +343,7 @@ metric_columns[0].metric(
 metric_columns[1].metric(
     "Solar expected in 48 hours",
     f"{forecast_energy:.1f} kWh",
-    help="Energy, not instantaneous power. The uncertainty appears in the chart.",
+    help="Energy, not instantaneous power. This uses synthetic demonstration weather.",
 )
 metric_columns[2].metric(
     "Solar used directly",
@@ -396,9 +351,12 @@ metric_columns[2].metric(
     help="Solar generated and consumed by household loads during the same modeled hour.",
 )
 metric_columns[3].metric(
-    "Calculation confidence",
-    "Medium",
-    help="The panel description is explicit, but weather and hourly consumption are simulated.",
+    "Recommendation confidence",
+    "Low — demo",
+    help=(
+        "Low means the recommendation demonstrates the method but the exact hour is not reliable "
+        "because weather and hourly household demand are synthetic."
+    ),
 )
 
 st.info(
@@ -502,96 +460,30 @@ st.plotly_chart(heatmap, width="stretch")
 st.markdown("#### Suggested example schedule")
 st.caption(
     "These are convenience recommendations, not electrical approvals. "
-    "High-draw flexible examples are scheduled one at a time."
+    "High-draw flexible examples are scheduled one at a time. Usage labels compare each "
+    "appliance's running power with this household's average hourly demand."
 )
 recommendation_columns = st.columns(max(1, min(len(recommendations), 4)))
+appliances_by_name = {appliance.name: appliance for appliance in appliances}
 for column, recommendation in zip(recommendation_columns, recommendations, strict=False):
+    appliance = appliances_by_name[str(recommendation["appliance"])]
+    usage = classify_appliance_usage(
+        appliance.power_kw,
+        household.annual_consumption_kwh,
+    )
     column.markdown(
         f"**{recommendation['appliance']}**  \n"
         f"{format_clock(recommendation['start'], include_day=True)}–"
         f"{format_clock(recommendation['end'])}  \n"
+        f"Running power: **{appliance.power_kw:.1f} kW**  \n"
+        f"Relative usage: **{usage['level']}** "
+        f"({usage['relative_multiple']:.1f}× this home's average)  \n"
         f"Cycle: {recommendation['energy_kwh']:.1f} kWh  \n"
-        f"Confidence: {recommendation['confidence']}"
+        "Recommendation confidence: **Low — demonstration only**"
     )
     column.caption(str(recommendation["safety_note"]))
 
-st.subheader("2. See the forecast behind the recommendation")
-st.write(
-    "The green line is expected solar. The blue line is an estimated non-flexible household "
-    "load derived from annual usage—not measured smart-meter data. The dotted purple line adds "
-    "the washer, dryer, dishwasher, and EV examples at their suggested start times. A jump in "
-    "the purple line is the modeled running power of one of those appliances."
-)
-production_chart = go.Figure()
-production_chart.add_trace(
-    go.Scatter(
-        x=frame.index,
-        y=frame["solar_high_kw"],
-        line={"width": 0},
-        showlegend=False,
-        hoverinfo="skip",
-    )
-)
-production_chart.add_trace(
-    go.Scatter(
-        x=frame.index,
-        y=frame["solar_low_kw"],
-        fill="tonexty",
-        fillcolor="rgba(0, 230, 167, .16)",
-        line={"width": 0},
-        name="Likely solar range",
-    )
-)
-production_chart.add_trace(
-    go.Scatter(
-        x=frame.index,
-        y=frame["solar_expected_kw"],
-        name="Expected solar",
-        line={"color": "#00e6a7", "width": 3},
-    )
-)
-production_chart.add_trace(
-    go.Scatter(
-        x=frame.index,
-        y=frame["base_load_kw"],
-        name="Estimated non-flexible home load",
-        line={"color": "#57a5ff", "width": 2},
-    )
-)
-production_chart.add_trace(
-    go.Scatter(
-        x=frame.index,
-        y=frame["optimized_load_kw"],
-        name="Estimated load plus suggested appliances",
-        line={"color": "#bb87ff", "width": 2, "dash": "dot"},
-    )
-)
-for recommendation in recommendations:
-    start_time = recommendation["start"]
-    production_chart.add_trace(
-        go.Scatter(
-            x=[start_time],
-            y=[frame.loc[start_time, "optimized_load_kw"]],
-            mode="markers+text",
-            name=str(recommendation["appliance"]),
-            text=[str(recommendation["appliance"])],
-            textposition="top center",
-            marker={"size": 9, "color": "#efb64c"},
-            showlegend=False,
-            hovertemplate=(
-                f"{recommendation['appliance']} starts<br>"
-                f"{format_clock(start_time, include_day=True)}<extra></extra>"
-            ),
-        )
-    )
-production_chart.update_layout(
-    height=430,
-    margin={"l": 10, "r": 10, "t": 10, "b": 10},
-    yaxis_title="Power at that moment (kW)",
-    hovermode="x unified",
-)
-st.plotly_chart(production_chart, width="stretch")
-with st.expander("How was this calculated?"):
+with st.expander("How the recommendation was calculated"):
     st.markdown(
         f"""
         1. Each of the **{len(system.sections)} array sections** is modeled separately using its
@@ -601,10 +493,8 @@ with st.expander("How was this calculated?"):
         3. Weather provides sunlight, air temperature, and wind.
         4. The model estimates panel temperature, DC power, losses, inverter conversion,
            and AC power.
-        5. The shaded band is a scenario range: expected output × 78% to 118%,
-           capped by the inverter.
-
-        **How the blue household-load line was created**
+        5. The scheduler compares modeled solar with estimated non-flexible household demand,
+           then places flexible appliances in the strongest available windows.
 
         The annual 10,800 kWh example is converted into a 48-hour energy allowance. The model
         subtracts the flexible example cycles, then distributes the remaining energy using an
@@ -613,42 +503,13 @@ with st.expander("How was this calculated?"):
 
         This is an estimate. It does not know module aging, exact horizon shading, snow coverage,
         wiring losses, inverter topology, curtailment, or actual interval household consumption.
-        A utility smart-meter CSV would replace the illustrative blue line.
-        """
-    )
-
-st.subheader("3. Follow where the energy goes")
-st.write(
-    "Each line represents energy over the full 48 hours. **A wider line means more kWh.** "
-    "This chart helps compare exporting solar, using it in the home, importing from the grid, "
-    "and storing it in the example battery."
-)
-flow_columns = st.columns(2)
-flow_columns[0].plotly_chart(
-    render_sankey(optimized_flows, "AI-planned appliance example"),
-    width="stretch",
-)
-flow_columns[1].plotly_chart(
-    render_sankey(battery_flows, "Same example with a 10 kWh battery"),
-    width="stretch",
-)
-with st.expander("How to interpret the energy-flow comparison"):
-    st.markdown(
-        """
-        - **Solar → Home:** solar used immediately by household loads.
-        - **Solar → Export:** surplus sent to the grid.
-        - **Grid → Home:** energy the home still needs when solar and battery are insufficient.
-        - **Solar → Battery:** surplus stored after conversion losses.
-        - **Battery → Home:** stored energy later returned to the house.
-
-        The battery example uses 10 kWh usable capacity, 5 kW charge/discharge power,
-        90% round-trip efficiency, and a 20% reserve. It is not a specific product recommendation.
+        A utility smart-meter CSV would replace this illustrative hourly demand profile.
         """
     )
 
 health_column, finance_column = st.columns(2)
 with health_column:
-    st.subheader("4. Understand system health")
+    st.subheader("2. Understand system health")
     loss = maintenance["loss_percent"]
     if maintenance["severity"] == "warning":
         st.warning(f"Example issue: {loss:.1f}% below modeled expectation")
@@ -674,7 +535,7 @@ with health_column:
         )
 
 with finance_column:
-    st.subheader("5. See a simple money example")
+    st.subheader("3. See a simple money example")
     st.metric("Annualized solar estimate", f"{finance['annual_production_kwh']:,.0f} kWh")
     st.metric("Illustrative annual energy value", f"${finance['annual_value']:,.0f}")
     st.metric("Simple payback illustration", f"{finance['simple_payback_years']:.1f} years")
@@ -700,28 +561,69 @@ with finance_column:
         )
 
 st.subheader("Confidence and assumptions")
-confidence_columns = st.columns(4)
-confidence_columns[0].metric("Solar-array description", "High")
-confidence_columns[1].metric("Weather", "Low — demo")
-confidence_columns[2].metric("Hourly home load", "Low–medium")
-confidence_columns[3].metric("Overall recommendation", "Medium")
-with st.expander("Why these confidence levels?"):
-    st.markdown(
-        """
-        - **Array: high** because panel groups, wattage, tilt, direction, shading, and inverter
-          capacity are explicit—though manufacturer and wiring details are not modeled.
-        - **Weather: low for this build** because the current provider is synthetic. It will improve
-          after a validated Aurora/ERA5 artifact is connected.
-        - **Household load: low–medium** because annual kWh is known but the hourly pattern is
-          synthetic. A smart-meter CSV would improve it.
-        - **Maintenance: demonstration only** because the inverter telemetry and 12% loss
-          are injected.
-        - **Finance: low** because one illustrative rate replaces a complete tariff.
-
-        A production answer will carry its own confidence, missing inputs, assumptions, model/data
-        versions, and initialization timestamps.
-        """
-    )
+st.write(
+    "**Confidence is not the probability that a prediction will be correct.** It is a plain "
+    "assessment of how much of the answer comes from measured or verified inputs versus "
+    "synthetic/default assumptions."
+)
+confidence_table = pd.DataFrame(
+    [
+        {
+            "Part of answer": "Solar-array model",
+            "Level": "High",
+            "What that means here": (
+                "Panel groups, watts, direction, tilt, shading, and inverter limit are explicit."
+            ),
+            "What is still missing": (
+                "Manufacturer curves, wiring topology, aging, and exact shade."
+            ),
+        },
+        {
+            "Part of answer": "Weather timing",
+            "Level": "Low — demo",
+            "What that means here": (
+                "The 48-hour weather pattern is synthetic, not a live forecast."
+            ),
+            "What is still missing": "Validated Aurora or another live forecast with timestamps.",
+        },
+        {
+            "Part of answer": "Hourly household demand",
+            "Level": "Low — demo",
+            "What that means here": (
+                "Annual kWh is provided, but the hour-by-hour shape is generated from assumptions."
+            ),
+            "What is still missing": "Smart-meter or interval consumption data.",
+        },
+        {
+            "Part of answer": "Suggested appliance hour",
+            "Level": "Low — demo",
+            "What that means here": (
+                "Use it to understand the scheduling method, not as a reliable plan for this day."
+            ),
+            "What is still missing": "Live weather plus measured household and appliance demand.",
+        },
+        {
+            "Part of answer": "Maintenance",
+            "Level": "Simulation only",
+            "What that means here": "The inverter telemetry and 12% underperformance are injected.",
+            "What is still missing": "Read-only telemetry from a real inverter over time.",
+        },
+        {
+            "Part of answer": "Financial illustration",
+            "Level": "Low",
+            "What that means here": "One example rate and simple payback formula are used.",
+            "What is still missing": (
+                "Actual tariff, export credit, incentives, financing, and fees."
+            ),
+        },
+    ]
+)
+st.dataframe(confidence_table, hide_index=True, width="stretch")
+st.caption(
+    "**High:** required inputs are directly supplied or measured. **Medium:** key inputs are "
+    "known but one important driver is modeled. **Low:** a key driver is synthetic or defaulted. "
+    "Every production answer should also show missing inputs, source timestamps, and model version."
+)
 
 with st.expander("Privacy and safety boundaries"):
     st.markdown(
@@ -757,6 +659,3 @@ with st.expander("Presentation-ready stretch goals"):
         10. Installer/utility handoff reports reviewed by qualified professionals.
         """
     )
-
-st.markdown("---")
-st.markdown(explain_recommendations(recommendations, maintenance))

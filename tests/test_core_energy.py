@@ -3,6 +3,7 @@ import pandas as pd
 from solar_agent.core.demo import demo_appliances, demo_battery, demo_household, demo_system
 from solar_agent.core.energy import (
     TIMEZONE,
+    classify_appliance_usage,
     energy_flows,
     estimate_solar_power,
     household_load_profile,
@@ -58,3 +59,14 @@ def test_high_draw_appliances_do_not_overlap() -> None:
     frame["base_load_kw"] = household_load_profile(frame.index, demo_household())
     scheduled, _ = schedule_appliances(frame, demo_appliances())
     assert scheduled.max() <= 7.2
+
+
+def test_appliance_usage_is_relative_to_household_average() -> None:
+    low = classify_appliance_usage(0.5, 10_800)
+    medium = classify_appliance_usage(1.2, 10_800)
+    high = classify_appliance_usage(4.5, 10_800)
+
+    assert low["level"] == "Low"
+    assert medium["level"] == "Medium"
+    assert high["level"] == "High"
+    assert high["relative_multiple"] > medium["relative_multiple"]

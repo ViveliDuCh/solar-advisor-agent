@@ -6,16 +6,18 @@ design (agents, skills, Aurora integration, security).
 
 ## 1. What this is
 
-A prototype AI assistant that helps homeowners size, optimize, and maintain
-a solar panel system. Two ways to run it:
+A prototype AI assistant that helps homeowners understand, optimize, and maintain
+a solar panel system. There are three local interfaces:
 
-| Mode | Needs a key? | What you get |
+| Interface | Address | Purpose |
 |---|---|---|
-| **Demo dashboard/chat** (`solar_agent.web.app`) | No | Graphical dashboard + chat, rule-based replies, real computed numbers (live weather → watts → sizing/payback) |
-| **Full LLM chat** (`devui ui_agents`) | Yes (OpenAI or Azure OpenAI) | The 5 real `agent_framework.Agent`s reasoning over the same skills |
+| **Primary Streamlit product UI** (`app.py`) | `http://localhost:8501` | Main household dashboard, 48-hour opportunity heatmap, recommendations, confidence, finance, maintenance, and Agent Framework chat |
+| **Upstream FastAPI prototype** (`solar_agent.web.app`) | `http://127.0.0.1:8000` | Secondary graphical demo retained from the base repository |
+| **Agent Framework DevUI** (`devui ui_agents`) | `http://localhost:8080` | Developer interface for inspecting individual specialist agents |
 
-Start with the demo dashboard — it needs nothing but Python and internet
-access, and is the fastest way to see the product.
+Start with the Streamlit product UI. Without Foundry configuration it clearly
+uses a local deterministic chat fallback; with Foundry configured it invokes
+the multi-agent handoff workflow.
 
 ## 2. One-time setup
 
@@ -28,59 +30,69 @@ If you see both an old default (e.g. 3.9) and a newer one (e.g. 3.14), pin
 the newer one explicitly in every command below, or create a venv with it
 once so plain `python` resolves correctly afterwards:
 ```powershell
-py -3.14 -m venv .venv
+py -3.13 -m venv .venv
 .venv\Scripts\activate
 ```
 
 Install dependencies:
 ```powershell
-cd C:\Users\vivianad\HACKATHON2026\solar-agent
-python -m pip install --pre -r requirements.txt
-python -m pip install fastapi uvicorn agent-framework-devui --pre
-```
-If your machine routes pip through a corporate proxy
-(`packagefeedproxy.microsoft.io`) and it can't find these (pre-release)
-packages, fall back to public PyPI for just these:
-```powershell
-python -m pip install --pre --index-url https://pypi.org/simple agent-framework agent-framework-foundry agent-framework-devui
+cd C:\Users\ebeltrnreyes\source\repos\solar-advisor-agent
+python -m pip install -e ".[dev]"
 ```
 
-## 3. Run the demo dashboard (recommended first run)
+## 3. Run the primary product UI
 
 ```powershell
-cd C:\Users\vivianad\HACKATHON2026\solar-agent
-$env:PYTHONPATH = "src"
-python -m solar_agent.web.app
+cd C:\Users\ebeltrnreyes\source\repos\solar-advisor-agent
+.\.venv\Scripts\python.exe -m streamlit run app.py
 ```
-Open **http://127.0.0.1:8000**. You'll see:
-- **4 summary cards**: System Health, Current Output, Panels Recommended, Payback Estimate (all in kW / $) — hover the **ⓘ** next to each label for a plain-language explanation
-- **A 24h output bar chart**: one green/amber/gray bar per hour (green = peak sun hour, amber = medium, gray = low/night); hover a bar for its low–high (P10–P90) estimate range
-- **An Appliances section**: 3-4 common devices (dishwasher, washing machine, dryer, EV charger) with their draw in kW and a colored Low/Medium/High usage tag
-- **A chat panel** with 5 selectable agents (Sizing, Forecast, Maintenance, Financial, Safety) for Q&A
+Open **http://localhost:8501**. The current product UI shows:
 
-All numbers come from a synthetic demo household ("Alex Rivera", Redmond WA
-— see `src/solar_agent/data/sample_user.json`), and from a **live** call to
-Open-Meteo for the weather forecast, so the chart/cards change run to run.
+- Editable household and mixed-array assumptions
+- One 48-hour solar-opportunity heatmap
+- Appliance schedules with running kW and Low/Medium/High usage relative to
+  that household's average hourly demand
+- Explicit confidence definitions and missing data
+- Simulated maintenance and simple financial examples
+- Agent Framework chat, or a clearly labeled deterministic fallback
 
-Chat replies here are rule-based templates, not an LLM — clearly labeled as
-demo mode. Every number shown is still a genuine computation, not fabricated.
+The current Streamlit weather is synthetic and is never labeled as Aurora.
 
-**`ModuleNotFoundError: No module named 'solar_agent'`?** You forgot
-`$env:PYTHONPATH = "src"` — the package lives under `src/`, which isn't on
-Python's path by default.
-
-**Port already in use?** Something else is bound to 8000 (maybe a previous
+**Port already in use?** Something else is bound to 8501 (maybe a previous
 run you didn't stop). Find and stop it:
 ```powershell
-Get-NetTCPConnection -LocalPort 8000 | Select OwningProcess
+Get-NetTCPConnection -LocalPort 8501 | Select OwningProcess
 Stop-Process -Id <that PID>
 ```
 
-## 4. Run the full LLM chat UI (needs a key)
+## 4. Run the merged upstream FastAPI prototype
 
 ```powershell
+python -m solar_agent.web.app
+```
+
+Open **http://127.0.0.1:8000**. The September 17 upstream merge added a
+graphical dashboard, kW unit corrections, hover explanations, a 24-hour
+peak-sun-hours chart, appliance usage tags, and this user manual. It remains
+a secondary prototype; the Streamlit UI is the integration target.
+
+## 5. Activate live Agent Framework chat
+
+Authenticate with Azure CLI, then create `.env` from `.env.example`:
+
+```dotenv
+FOUNDRY_PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>
+FOUNDRY_MODEL=<chat-model-deployment-name>
+```
+
+Restart Streamlit. The status banner should change from **Offline fallback**
+to **Live multi-agent mode**.
+
+## 6. Optional Agent Framework DevUI
+
+```powershell
+python -m pip install -e ".[devui]"
 copy ui_agents\.env.example ui_agents\.env
-notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
 devui ui_agents --port 8080
 ```
 If `devui` isn't recognized (its console-script exe isn't on PATH), call the
@@ -99,12 +111,12 @@ directory instead of `ui_agents`), or `ui_agents/.env` is missing a valid
 `OPENAI_API_KEY`/`OPENAI_MODEL` (each agent fails to construct and is
 silently skipped).
 
-## 5. Run the tests (no key needed)
+## 7. Run the tests (no key needed)
 ```powershell
 python -m pytest tests -q
 ```
 
-## 6. Demo household & data used
+## 8. Demo household & data used
 
 Synthetic, no real PII (`src/solar_agent/data/sample_user.json`):
 Alex Rivera, Redmond WA, 12×400W panels (4800W total), 30° tilt/south-facing,
@@ -116,20 +128,21 @@ tilt/azimuth, existing system size (or "none yet"), inverter capacity,
 average daily kWh + tariff type (never a real bill upload), occupancy
 pattern, appliance list, shading.
 
-## 7. Weather / Aurora status
+## 9. Weather / Aurora status
 
-Default provider is **Open-Meteo** (free, live, no auth). Microsoft Aurora
-(via Azure AI Foundry, or open MIT-licensed weights on Hugging Face) is
-wired as a second provider behind the same interface
-(`src/solar_agent/skills/weather_forecast_skill.py`) but not yet active —
-see `docs/ARCHITECTURE.md` section 2 for the setup steps and trade-offs.
+The primary Streamlit dashboard currently uses an explicitly labeled synthetic
+48-hour provider for repeatable demonstrations. The merged FastAPI prototype
+uses Open-Meteo. Microsoft Aurora remains preserved behind provider boundaries
+and in `docs/AURORA_FUTURE_WORK.md`; it is not yet active or claimed as the
+source of any displayed forecast.
 
-## 8. Repo & docs map
+## 10. Repo & docs map
 
 - `docs/ARCHITECTURE.md` — full design: Aurora decision gate, solar math,
   agents/skills, security, task split
 - `src/solar_agent/skills/` — deterministic math (tested, no LLM)
 - `src/solar_agent/agents/` — LLM agent definitions
+- `app.py` — primary Streamlit product UI
 - `src/solar_agent/web/` — demo dashboard (FastAPI + static JS/CSS)
 - `ui_agents/` — DevUI-discoverable entities for the full LLM chat UI
 - `tests/` — run with `pytest tests -q`

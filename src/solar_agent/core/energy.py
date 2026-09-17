@@ -204,3 +204,27 @@ def opportunity_score(frame: pd.DataFrame) -> pd.Series:
     raw = surplus - confidence_width * 0.15
     denominator = max(float(raw.max() - raw.min()), 0.1)
     return ((raw - raw.min()) / denominator * 100).clip(0, 100)
+
+
+def classify_appliance_usage(
+    appliance_power_kw: float,
+    annual_consumption_kwh: float,
+) -> dict[str, float | str]:
+    """Compare appliance running power with this household's average hourly demand."""
+    if appliance_power_kw < 0 or annual_consumption_kwh <= 0:
+        raise ValueError("Appliance power must be non-negative and annual consumption positive")
+
+    household_average_kw = annual_consumption_kwh / (365 * 24)
+    ratio = appliance_power_kw / household_average_kw
+    if ratio < 0.75:
+        level = "Low"
+    elif ratio < 2:
+        level = "Medium"
+    else:
+        level = "High"
+
+    return {
+        "level": level,
+        "household_average_kw": round(household_average_kw, 2),
+        "relative_multiple": round(ratio, 1),
+    }

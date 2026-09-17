@@ -184,7 +184,10 @@ async def build_dashboard(household: dict) -> dict:
     (kilowatts) to match how solar systems and appliances are normally
     labeled/rated.
     """
-    total_w = household["existing_system"]["panel_count"] * household["existing_system"]["panel_rated_w"]
+    total_w = (
+        household["existing_system"]["panel_count"]
+        * household["existing_system"]["panel_rated_w"]
+    )
 
     forecast = await get_hourly_forecast(
         lat=household["user"]["lat"], lon=household["user"]["lon"], hours=24
@@ -239,7 +242,11 @@ async def build_dashboard(household: dict) -> dict:
     readings = await adapter.get_current_telemetry()
     reading = readings[0]
     expected_w = await adapter.get_expected_power_w(reading.timestamp)
-    shortfall_pct = max(0.0, (expected_w - reading.power_w) / expected_w * 100.0) if expected_w > 0 else 0.0
+    shortfall_pct = (
+        max(0.0, (expected_w - reading.power_w) / expected_w * 100.0)
+        if expected_w > 0
+        else 0.0
+    )
     healthy = not (reading.fault_code or shortfall_pct > 20.0)
 
     _display_names = {
