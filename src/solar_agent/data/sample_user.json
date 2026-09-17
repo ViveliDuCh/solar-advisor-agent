@@ -1,0 +1,25 @@
+{
+  "_comment": "Synthetic demo user - fictional, no real PII. Used to make the UI feel real without needing anyone's actual data.",
+  "user": {
+    "name": "Alex Rivera",
+    "email": "alex.rivera@example.com",
+    "location_label": "Redmond, WA (example)",
+    "lat": 47.6740,
+    "lon": -122.1215
+  },
+  "roof": { "tilt_deg": 30, "azimuth_deg": 180, "shading": "none" },
+  "existing_system": { "panel_count": 12, "panel_rated_w": 400, "inverter_capacity_w": 5000 },
+  "consumption": {
+    "avg_daily_kwh": 28.0,
+    "occupancy": "remote_work_full_time",
+    "notes": "Works from home full-time; usage rises ~15% if a home office AC unit runs all day."
+  },
+  "tariff_profile_id": "time_of_use",
+  "system_cost_usd": 15600,
+  "appliances": {
+    "dishwasher": 1800,
+    "washing_machine": 500,
+    "clothes_dryer": 3000,
+    "ev_charger_level2": 7200
+  }
+}

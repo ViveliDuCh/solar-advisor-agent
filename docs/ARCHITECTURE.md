@@ -39,9 +39,18 @@ flags, and financial payback — all in plain, non-engineer language.
 | Judge appeal | High — uses MSR's own foundation model | Lower but reliable |
 | Demo latency | Foundry batch jobs aren't instant | Instant |
 
-**Decision:** implement `WeatherForecastSkill` against Open-Meteo first (always
-demoable), keep Aurora as a second provider behind the same interface, and
-flip to it if ready by demo day.
+**Public/no-Azure-account alternative:** Aurora's weights are MIT-licensed and
+published on Hugging Face (`microsoft/aurora`) - anyone can `pip install
+microsoft-aurora`, download checkpoints, and run inference locally/on their
+own GPU without an Azure account or Foundry approval. This removes the
+Foundry-access blocker but not the initial-condition-data or GPU/compute
+requirement - you still need an ECMWF/HRRR/ERA5 initial condition and enough
+compute for a reasonable inference time. For the hackathon demo, Open-Meteo
+remains the pragmatic default; the HF-hosted Aurora weights are a good
+middle ground if Foundry access doesn't come through in time and someone
+on the team has GPU access.
+
+
 
 ## 3. Solar output model (per house), with uncertainty
 

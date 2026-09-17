@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Solar Advisor - Demo UI</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>☀️ Solar Advisor</h1>
+      <p class="subtitle">Demo mode - rule-based replies, real computed numbers</p>
+      <div id="agent-list" class="agent-list"></div>
+      <div class="user-card" id="user-card">Loading demo household…</div>
+      <div class="weather-source">
+        Weather source: <strong>Open-Meteo</strong> (live)<br/>
+        Aurora 1.5 (Foundry): <span class="pending">pending access</span>
+      </div>
+    </aside>
+    <main class="chat">
+      <div id="messages" class="messages"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="message-input" type="text" placeholder="Ask a question…" autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

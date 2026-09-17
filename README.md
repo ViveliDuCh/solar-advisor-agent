@@ -47,7 +47,20 @@ python -m pip install --pre --index-url https://pypi.org/simple agent-framework 
 python -m pytest tests -q
 ```
 
-### Run the chat UI (needs an LLM key)
+### See the UI right now (no API key needed)
+```powershell
+python -m pip install fastapi uvicorn
+python -m solar_agent.web.app
+```
+Opens `http://127.0.0.1:8000` - a chat UI with the same 5 agents (Sizing,
+Forecast, Maintenance, Financial, Safety) against a made-up demo household
+("Alex Rivera", Redmond WA - synthetic, no real data). Replies are
+**rule-based templates, not an LLM** - but every number (forecast, watts,
+sizing, payback) is a genuine live call to the real skills (Open-Meteo +
+solar math), not fabricated. This is the fastest way to see what the product
+looks like; swap to the LLM-backed agents below once a key is available.
+
+### Run the full LLM chat UI (needs an LLM key)
 ```powershell
 copy ui_agents\.env.example ui_agents\.env
 notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
