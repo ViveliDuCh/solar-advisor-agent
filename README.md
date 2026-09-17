@@ -11,14 +11,50 @@ ready.
 See `docs/ARCHITECTURE.md` for the full design doc (agents, skills, data flow,
 security, and the Aurora integration decision gate).
 
+## Requirements
+
+- **Python 3.10+** (`agent-framework` will not install on older versions).
+  On Windows, plain `python`/`py` often resolves to an old bundled interpreter
+  (e.g. a Visual Studio-installed Python 3.9) even if a newer one is present.
+  Check what's available with:
+  ```powershell
+  py -0p
+  ```
+  If you see a 3.10+ entry (e.g. `-3.14-64`) alongside an older default, pin it
+  explicitly in every command below (`py -3.14 ...`), or better, create the
+  venv with it once so plain `python`/`pip` resolve correctly afterwards.
+
 ## Quick start
 
-```bash
-python -m venv .venv
+```powershell
+py -3.14 -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+python -m pip install --pre -r requirements.txt
+python -m pip install agent-framework-devui --pre
 python -m solar_agent.orchestrator
 ```
+
+Corporate/proxied pip index (e.g. `packagefeedproxy.microsoft.io`) may not
+mirror these pre-release packages yet. If install fails with
+"No matching distribution found", fall back to public PyPI for just these
+packages:
+```powershell
+python -m pip install --pre --index-url https://pypi.org/simple agent-framework agent-framework-foundry agent-framework-devui
+```
+
+### Run the tests (no API key needed)
+```powershell
+python -m pytest tests -q
+```
+
+### Run the chat UI (needs an LLM key)
+```powershell
+copy ui_agents\.env.example ui_agents\.env
+notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
+devui ui_agents --port 8080
+```
+Opens `http://localhost:8080` with all 5 agents (Sizing, Forecast,
+Maintenance, Financial, Safety) selectable in the sidebar.
 
 ## Layout
 
