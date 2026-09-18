@@ -70,8 +70,14 @@ async def chat(req: ChatRequest) -> dict:
 
 
 def main() -> None:
+    import threading
+    import webbrowser
+
     import uvicorn
 
+    url = "http://127.0.0.1:8000"
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    print(f"\nOpening {url} in your browser...\n")
     uvicorn.run("solar_agent.web.app:app", host="127.0.0.1", port=8000, reload=False)
 
 
