@@ -4,6 +4,7 @@ Any real inverter integration (SolarEdge, Enphase, SMA, ...) implements this
 same Protocol, so Maintenance/Notification agents never know whether they're
 talking to a simulator or real hardware. See docs/ARCHITECTURE.md section 5.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

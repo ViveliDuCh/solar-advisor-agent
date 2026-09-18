@@ -5,10 +5,12 @@ vetted reference set (RAG) rather than freelancing electrical rules. The
 reference content below is a placeholder; replace with vetted NEC-adjacent
 guidance and manufacturer safety docs before using this for real advice.
 """
+
 from __future__ import annotations
 
-from agent_framework import Agent
-from agent_framework.openai import OpenAIChatClient
+from agent_framework import Agent, SupportsChatGetResponse
+
+from solar_agent.agent_client import create_chat_client
 
 INSTRUCTIONS = """
 You explain electrical safety, DIY feasibility limits, and battery-storage
@@ -22,25 +24,25 @@ oversimplifying - the app pitches "skip the battery" savings, so batteries
 must still get an unbiased explanation when asked about.
 """
 
-# Placeholder reference set - replace with vetted, cited sources before demo.
+# Conservative demo boundaries. Replace with a vetted, cited knowledge source.
 SAFETY_REFERENCE_NOTES = [
-    "AC-side work (past the main disconnect) may be within reach for an "
-    "experienced DIYer in some jurisdictions; DC combiner/inverter wiring and "
-    "grid interconnection require a licensed electrician and utility permit "
-    "in virtually all US jurisdictions.",
-    "Lithium-ion battery storage: higher cost, longer cycle life, requires "
-    "thermal management and fire-safety clearances; lead-acid: lower upfront "
-    "cost, shorter life, more toxic to dispose of, needs ventilation.",
-    "Panels should be de-energized (covered) before any physical inspection "
-    "or cleaning work near wiring; panels still generate voltage in daylight "
-    "even when 'off'.",
+    "Solar availability is not a circuit-capacity test. Breakers, wiring, "
+    "receptacles, nameplate current, and simultaneous loads determine circuit safety.",
+    "Do not open an inverter, disconnect solar DC wiring, enter a battery enclosure, "
+    "or access a roof based on this application's advice.",
+    "Battery comparisons must disclose usable capacity, power limits, efficiency, "
+    "reserve assumptions, cost, warranty, thermal-management needs, and end-of-life handling.",
+    "Follow equipment documentation and use qualified local professionals for electrical, "
+    "structural, permitting, interconnection, fire-code, and installation decisions.",
 ]
 
 
-def build_safety_agent(client: OpenAIChatClient | None = None) -> Agent:
+def build_safety_agent(client: SupportsChatGetResponse | None = None) -> Agent:
     return Agent(
-        client=client or OpenAIChatClient(),
+        client=client or create_chat_client(),
         name="SafetyAgent",
+        description="Explains safety boundaries and battery tradeoffs.",
         instructions=INSTRUCTIONS + "\n\nReference notes:\n" + "\n".join(SAFETY_REFERENCE_NOTES),
         tools=[],
+        require_per_service_call_history_persistence=True,
     )

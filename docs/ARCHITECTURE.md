@@ -1,130 +1,201 @@
-# Solar Advisor — Architecture
+# Solar Advisor architecture
 
-Executive challenge: **Hack for Industry — Energy & Resources**.
-Team: 2 people (hardware/electronics + backend/AI), Redmond WA.
+This document describes the code that actually runs on September 18, 2026.
+The repository has one product UI and one Agent Framework integration.
 
-## 1. Problem
+## 1. Runtime overview
 
-~9% of US homes (~6M) have solar installed but most under-use it: no batteries,
-no guidance on *when* to shift load to sun hours, no easy sizing help for new
-buyers, and no plain-language safety/maintenance guidance. Goal: an AI agent
-that turns weather + location + roof + consumption data into concrete hourly
-actions ("run the dryer at 1pm"), sizing help for new users, maintenance
-flags, and financial payback — all in plain, non-engineer language.
-
-## 2. Forecast source — Aurora integration & decision gate
-
-**Steps to call Aurora via Azure AI Foundry:**
-1. Request access to `Aurora-1.5` in the Foundry model catalog
-   (ai.azure.com/catalog/models/Aurora-1.5) — do this first; approval lag is
-   the biggest schedule risk.
-2. Collect `FOUNDRY_ENDPOINT`, `FOUNDRY_TOKEN`, and a Blob container + SAS URL
-   (the Foundry Aurora API moves batches through blob storage, not inline).
-3. Aurora needs an **initial atmospheric condition** grid (t=0 and t=-6h:
-   temp, wind, pressure, etc.), not just a lat/lon. Sources:
-   - **ECMWF Open Data** (free, 0.25°, closest to Aurora's native training grid)
-   - **NOAA HRRR** (US-only, 3km, hourly) — best local precision
-   - **Copernicus CDS ERA5** — reanalysis, ~5 day latency, backtesting only
-4. Submit via `aurora.foundry.submit`, poll the 6-hourly output grid (to 10
-   days out), extract the nearest cell, and read surface solar radiation
-   (ssrd/shortwave flux), cloud cover, and 2m temp — the channels that feed
-   the output model below.
-
-**Decision gate:**
-
-| | Aurora (Foundry) | Open-Meteo / NWS fallback |
-|---|---|---|
-| Setup risk | Access approval + shaping initial-condition tensors = real lift | Zero-auth REST, hourly GHI/cloud cover in minutes |
-| Resolution | 0.25° global grid, 6h steps — coarse per rooftop | Already localized, hourly |
-| Judge appeal | High — uses MSR's own foundation model | Lower but reliable |
-| Demo latency | Foundry batch jobs aren't instant | Instant |
-
-**Public/no-Azure-account alternative:** Aurora's weights are MIT-licensed and
-published on Hugging Face (`microsoft/aurora`) - anyone can `pip install
-microsoft-aurora`, download checkpoints, and run inference locally/on their
-own GPU without an Azure account or Foundry approval. This removes the
-Foundry-access blocker but not the initial-condition-data or GPU/compute
-requirement - you still need an ECMWF/HRRR/ERA5 initial condition and enough
-compute for a reasonable inference time. For the hackathon demo, Open-Meteo
-remains the pragmatic default; the HF-hosted Aurora weights are a good
-middle ground if Foundry access doesn't come through in time and someone
-on the team has GPU access.
-
-
-
-## 3. Solar output model (per house), with uncertainty
-
-```
-Instant Power (W) = Panel rated W (STC)
-                   × (irradiance / 1000 W/m²)
-                   × system derate            # 0.75–0.85: wiring/inverter/soiling/mismatch loss
-                   × tilt/azimuth factor
-                   × temp_derate(ambient, irradiance)   # ~0.3–0.5%/°C above 25°C cell temp
+```text
+Browser
+  |
+  v
+Streamlit product UI (app.py, http://localhost:8501)
+  |
+  +-- page calculations -----------------------------------------------+
+  |   src/solar_agent/core                                             |
+  |   pvlib solar output, household load, scheduling, finance,         |
+  |   maintenance simulation, confidence, and charts                   |
+  |                                                                   |
+  +-- user submits a chat question                                    |
+      |                                                               |
+      v                                                               |
+  app.py:render_advisor_chat                                          |
+      |                                                               |
+      v                                                               |
+  orchestrator.py:handle_message                                      |
+      |                                                               |
+      v                                                               |
+  Agent Framework HandoffBuilder workflow                             |
+      |                                                               |
+      +--> SolarAdvisor triage Agent                                   |
+      +--> ForecastAgent                                               |
+      +--> FinancialAgent                                              |
+      +--> MaintenanceAgent                                            |
+      +--> SafetyAgent                                                 |
+      +--> SizingAgent                                                 |
+      |                                                               |
+      v                                                               |
+  agent_client.py:create_chat_client                                   |
+      |                                                               |
+      v                                                               |
+  FoundryChatClient(project_endpoint, model, AzureCliCredential)       |
+      |                                                               |
+      v                                                               |
+  Microsoft Foundry deployment: gpt-4.1-mini                          |
+      |                                                               |
+      v                                                               |
+  Specialist chooses deterministic Python tool(s) ---------------------+
 ```
 
-Uncertainty band: run at P10/P50/P90 irradiance (ensemble spread if available,
-else a cloud-cover-derived band), widening with forecast lead time. Output a
-range + confidence, e.g. *"3.2–4.1 kWh between 12–2pm, P50 ≈ 3.6 kWh"* — never
-a false-precision single number.
+The page does not call the language model merely to render existing numbers.
+Dashboard values are calculated directly because deterministic functions are
+faster, testable, reproducible, and cheaper. **A real Agent Framework request
+occurs when the user submits a chat message.** The model chooses the specialist
+and tools; Python tools calculate watts, kWh, dollars, and maintenance results.
 
-**Minimum user inputs:** location, roof orientation + tilt, existing system
-size (or "none yet"), inverter capacity, sample monthly usage + tariff type
-(synthetic, never a real bill), occupancy pattern, optional appliance list,
-optional shading info.
+## 2. Exact model-call path
 
-## 4. Agents & Skills
+1. `app.py` calls `handle_message()` after the user selects **Send**.
+2. `src/solar_agent/orchestrator.py` builds the `HandoffBuilder` workflow and
+   calls:
 
-Agent Framework concept: an **Agent** = LLM + instructions + tool access,
-decides *when* to act. A **Skill** = a plain deterministic Python function —
-all math (watts, dollars, safety limits) lives in skills, never freehand LLM
-arithmetic.
+   ```python
+   result = await build_advisor_agent().run(prompt, session=session)
+   ```
 
-| Agent | Role | Skills used |
+3. `src/solar_agent/agent_client.py` creates:
+
+   ```python
+   FoundryChatClient(
+       project_endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"],
+       model=os.environ["FOUNDRY_MODEL"],
+       credential=AzureCliCredential(),
+   )
+   ```
+
+4. The local `.env` currently identifies the `solar-advisor-ai` Foundry project
+   and `gpt-4.1-mini` deployment. The file is ignored by Git.
+5. Azure CLI authenticates `ebeltrnreyes@microsoft.com` as its guest identity
+   in the Foundry resource tenant.
+
+This is GPT-4.1-mini accessed through Microsoft Foundry. It is not the ChatGPT
+consumer application and no OpenAI API key is used.
+
+## 3. Agents versus skills
+
+Only `src/solar_agent/agents` contains agent implementations. The former
+top-level `ui_agents` discovery wrappers were removed.
+
+| Component | Responsibility | May calculate numbers? |
 |---|---|---|
-| Orchestrator ("Solar Advisor") | User-facing router | — |
-| Sizing Agent | "How many panels do I need" | `sizing_skill` |
-| Forecast/Optimization Agent | Hourly output + appliance-timing suggestions | `weather_forecast_skill`, `solar_output_skill`, `appliance_scheduler_skill` |
-| Maintenance Agent | Flags underperformance vs. expected curve | `inverter_sim_skill` (→ real adapter later) |
-| Financial Agent | Payback/ROI | `tariff_payback_skill` |
-| Safety/Education Agent | Plain-language electrical safety & battery tradeoffs, grounded in a small vetted reference set | — |
+| `SolarAdvisor` | Understand request and hand off to specialist | No |
+| `ForecastAgent` | Explain forecast and appliance timing | No; calls forecast/output/scheduler tools |
+| `FinancialAgent` | Explain bills, cost changes and payback | No; calls financial/scenario tools |
+| `MaintenanceAgent` | Interpret expected versus inverter output | No; calls telemetry tool |
+| `SafetyAgent` | Explain conservative safety boundaries | No electrical design |
+| `SizingAgent` | Explain educational energy sizing | No; calls sizing tool |
+| `skills` | Agent-callable, deterministic operations | Yes |
+| `core` | Shared solar and household calculation engine used by UI and skills | Yes |
 
-Wired as a workflow graph (sequential/handoff): Orchestrator routes →
-specialist calls skill(s) → structured result → Orchestrator phrases the
-answer in plain language.
+An **agent** is the language-model reasoning layer: instructions, conversation
+context, handoffs, and tool selection. A **skill/tool** is ordinary Python that
+accepts structured input and returns structured output. Numeric calculations
+stay outside the model so they can be tested.
 
-## 5. Simulating hardware without giving anything up
+## 4. Inputs and assumptions
 
-Real inverter OAuth (SolarEdge/Enphase) needs vendor developer accounts that
-can't be obtained mid-hackathon — an access blocker, not physics. Fix: a
-`DeviceAdapter` interface with a `SimulatedInverterAdapter` that generates
-realistic telemetry from `solar_output_skill` plus injected noise/faults, so
-Maintenance/Notification logic runs on a stream indistinguishable from real
-hardware in the demo. A `RealSolarEdgeAdapter` slots into the same interface
-later (dependency inversion) — worth stating explicitly to judges.
-Live notifications need no simulation: a scheduler runs the Optimization
-Agent hourly and pushes real recommendation events. Tariff payback ships 2–3
-real published rate-structure profiles (flat/tiered/TOU) as selectable
-examples instead of requiring a bill upload.
+Demo defaults are centralized in:
 
-## 6. Security & privacy
+```text
+src/solar_agent/data/demo_assumptions.json
+```
 
-- Never persist raw utility bill uploads; only synthetic/example profiles are
-  used in the demo.
-- PII redaction middleware strips address/usage data from logs and traces
-  before they reach any observability sink.
-- Data at rest encrypted (Azure Key Vault + storage encryption), scoped per
-  session, opt-in retention.
-- In-app disclaimer: prototype — do not enter real personal financial data.
+That file contains the example household, mixed solar array, appliances,
+electricity rate, installed cost, simulated underperformance, scenario defaults,
+and weather mode. The Streamlit sidebar exposes the principal household and
+array values for editing.
 
-## 7. Repo & task split
+| Classification | Examples | Treatment |
+|---|---|---|
+| User input | Annual kWh, array sections, inverter limit, electricity rate | Passed into calculations and chat context |
+| Demo default | Appliance power/duration, freezer 500 kWh/year, water heating 3,000 kWh/year | Loaded from the catalog and explicitly disclosed |
+| Simulation | Synthetic weather, 12% inverter underperformance | Clearly labeled; never represented as measured |
+| Computed result | Solar output, opportunity score, cost change | Produced by deterministic core or tools |
 
-Repo hosted on personal GitHub (github.com/ViveliDuCh) per current `gh` auth;
-move to GitHub EMU or ADO if required by hackathon rules.
+Production behavior must replace a demo default with measured/user-provided
+data or show the default and confidence impact. The agent is instructed not to
+invent missing numeric inputs.
 
-- **Backend/AI (C#/.NET runtime maintainer, Python for this project):**
-  Agent Framework orchestration, `weather_forecast_skill` (Open-Meteo + Aurora
-  swap-in), Forecast/Financial agents, chat API, PII middleware.
-- **Hardware/electronics (Surface team):** `solar_output_skill` physics,
-  `sizing_skill`, electrical-design/safety reference content,
-  `inverter_sim_skill` fault model.
-- **Shared:** web frontend, demo dataset/script, tariff profiles.
+## 5. Forecast and Aurora boundary
+
+The primary dashboard currently uses `SyntheticForecastProvider` for a stable
+48-hour demonstration. It is explicitly labeled as synthetic.
+
+Aurora remains part of the architecture:
+
+```text
+Atmospheric source
+  -> Aurora-compatible t=-6h and t=0 batch
+  -> Aurora inference in Foundry or suitable GPU compute
+  -> validated global forecast artifact
+  -> location extraction and irradiance conversion
+  -> CachedAuroraForecastProvider
+  -> same pvlib and scheduling core
+```
+
+The detailed variables, pressure levels, batch construction, validation, Blob
+Storage flow, and operational-weather migration are preserved in
+`docs/AURORA_FUTURE_WORK.md`. Aurora is a weather model; GPT-4.1-mini is the
+conversation/tool-selection model. They are separate deployments.
+
+## 6. Privacy and safety
+
+- No utility statement, account number, payment information, or exact address is
+  required by the demo.
+- Email addresses and phone numbers are redacted before live model requests.
+- The model receives a compact dashboard summary rather than the complete
+  Streamlit session.
+- No language model performs electrical calculations or certifies a circuit.
+- The application does not provide wiring, breaker, string, grounding, rooftop,
+  permitting, interconnection, or installation instructions.
+- Inverter telemetry and maintenance diagnoses are simulated until a read-only
+  vendor adapter is connected.
+
+## 7. Repository layout
+
+```text
+app.py                              # only product UI
+src/solar_agent/
+  agent_client.py                   # FoundryChatClient construction
+  orchestrator.py                   # Agent Framework handoff workflow
+  agents/                           # five specialist Agent definitions
+  skills/                           # deterministic Agent-callable tools
+  core/                             # shared solar/household engine
+  adapters/                         # simulated and future inverter boundaries
+  security/                         # input redaction
+  data/demo_assumptions.json        # visible demo defaults
+docs/
+  ARCHITECTURE.md                   # this runtime design
+  USER_MANUAL.md                    # setup and operation
+  AURORA_FUTURE_WORK.md             # retained Aurora implementation plan
+tests/                              # deterministic and runtime configuration tests
+```
+
+## 8. Current completion state
+
+Working:
+
+- One Streamlit product UI
+- Live GPT-4.1-mini access through Foundry
+- Agent Framework multi-agent handoffs
+- Deterministic solar, scheduling, scenario, finance, and maintenance tools
+- Mixed-array modeling and explicit confidence
+- Local synthetic-weather demonstration
+
+Not production-complete:
+
+- Aurora or another validated live provider in the primary UI
+- Smart-meter interval data
+- Real inverter telemetry
+- Versioned utility tariffs and export credits
+- Production authentication, persistence, monitoring, deployment and evaluation

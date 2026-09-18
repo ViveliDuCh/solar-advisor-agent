@@ -1,135 +1,69 @@
-# Solar Advisor — User Manual
+# Solar Advisor user manual
 
-This covers running the demo, what you'll see, and fixes for the setup
-issues we've hit so far. See `docs/ARCHITECTURE.md` for the full technical
-design (agents, skills, Aurora integration, security).
-
-## 1. What this is
-
-A prototype AI assistant that helps homeowners size, optimize, and maintain
-a solar panel system. Two ways to run it:
-
-| Mode | Needs a key? | What you get |
-|---|---|---|
-| **Demo dashboard/chat** (`solar_agent.web.app`) | No | Graphical dashboard + chat, rule-based replies, real computed numbers (live weather → watts → sizing/payback) |
-| **Full LLM chat** (`devui ui_agents`) | Yes (OpenAI or Azure OpenAI) | The 5 real `agent_framework.Agent`s reasoning over the same skills |
-
-Start with the demo dashboard — it needs nothing but Python and internet
-access, and is the fastest way to see the product.
-
-## 2. One-time setup
-
-**Requirement: Python 3.10+.** On Windows, `python`/`py` may default to an
-older bundled interpreter. Check what's installed:
-```powershell
-py -0p
-```
-If you see both an old default (e.g. 3.9) and a newer one (e.g. 3.14), pin
-the newer one explicitly in every command below, or create a venv with it
-once so plain `python` resolves correctly afterwards:
-```powershell
-py -3.14 -m venv .venv
-.venv\Scripts\activate
-```
-
-Install dependencies:
-```powershell
-cd C:\Users\vivianad\HACKATHON2026\solar-agent
-python -m pip install --pre -r requirements.txt
-python -m pip install fastapi uvicorn agent-framework-devui --pre
-```
-If your machine routes pip through a corporate proxy
-(`packagefeedproxy.microsoft.io`) and it can't find these (pre-release)
-packages, fall back to public PyPI for just these:
-```powershell
-python -m pip install --pre --index-url https://pypi.org/simple agent-framework agent-framework-foundry agent-framework-devui
-```
-
-## 3. Run the demo dashboard (recommended first run)
+## Start the product
 
 ```powershell
-cd C:\Users\vivianad\HACKATHON2026\solar-agent
-$env:PYTHONPATH = "src"
-python -m solar_agent.web.app
+cd C:\Users\ebeltrnreyes\source\repos\solar-advisor-agent
+.\.venv\Scripts\python.exe -m streamlit run app.py
 ```
-Open **http://127.0.0.1:8000**. You'll see:
-- **4 summary cards**: System Health, Current Output, Panels Recommended, Payback Estimate (all in kW / $) — hover the **ⓘ** next to each label for a plain-language explanation
-- **A 24h output bar chart**: one green/amber/gray bar per hour (green = peak sun hour, amber = medium, gray = low/night); hover a bar for its low–high (P10–P90) estimate range
-- **An Appliances section**: 3-4 common devices (dishwasher, washing machine, dryer, EV charger) with their draw in kW and a colored Low/Medium/High usage tag
-- **A chat panel** with 5 selectable agents (Sizing, Forecast, Maintenance, Financial, Safety) for Q&A
 
-All numbers come from a synthetic demo household ("Alex Rivera", Redmond WA
-— see `src/solar_agent/data/sample_user.json`), and from a **live** call to
-Open-Meteo for the weather forecast, so the chart/cards change run to run.
+Open `http://localhost:8501`. This is the only product interface.
 
-Chat replies here are rule-based templates, not an LLM — clearly labeled as
-demo mode. Every number shown is still a genuine computation, not fabricated.
+## Chat status
 
-**`ModuleNotFoundError: No module named 'solar_agent'`?** You forgot
-`$env:PYTHONPATH = "src"` — the package lives under `src/`, which isn't on
-Python's path by default.
+The banner above **Ask Solar Advisor** reports the active mode:
 
-**Port already in use?** Something else is bound to 8000 (maybe a previous
-run you didn't stop). Find and stop it:
+- **Live multi-agent mode:** Streamlit is calling Microsoft Agent Framework
+  and the configured Foundry GPT model.
+- **Offline fallback:** Foundry settings or authentication are unavailable,
+  so supported questions use local deterministic responses.
+
+The live call occurs only after selecting **Send**. The dashboard does not call
+the model simply to display calculations.
+
+## Foundry configuration
+
+Local `.env`:
+
+```dotenv
+FOUNDRY_PROJECT_ENDPOINT=https://<resource>.services.ai.azure.com/api/projects/<project>
+FOUNDRY_MODEL=<deployment-name>
+AZURE_CONFIG_DIR=<optional Azure CLI profile directory>
+```
+
+Authenticate the account that has Foundry User in the Foundry tenant:
+
 ```powershell
-Get-NetTCPConnection -LocalPort 8000 | Select OwningProcess
-Stop-Process -Id <that PID>
+$env:AZURE_CONFIG_DIR = "<same profile directory>"
+az login --tenant "<Foundry tenant ID>"
 ```
 
-## 4. Run the full LLM chat UI (needs a key)
+Never commit `.env`, Azure CLI profiles, passwords, tokens, or API keys.
+
+## Data shown
+
+Editable inputs are in the sidebar. Remaining demo defaults are documented in:
+
+```text
+src\solar_agent\data\demo_assumptions.json
+```
+
+The primary weather source is currently synthetic. Aurora work remains in
+`docs\AURORA_FUTURE_WORK.md` and is not represented as active.
+
+## Review the integration
+
+- `app.py` — calls `handle_message()` when Send is selected
+- `src\solar_agent\orchestrator.py` — Agent Framework handoff workflow
+- `src\solar_agent\agent_client.py` — `FoundryChatClient` and GPT deployment
+- `src\solar_agent\agents\` — specialist agents
+- `src\solar_agent\skills\` — agent-callable deterministic tools
+- `src\solar_agent\core\` — calculation engine shared with the dashboard
+- `docs\ARCHITECTURE.md` — complete execution diagram
+
+## Validate
 
 ```powershell
-copy ui_agents\.env.example ui_agents\.env
-notepad ui_agents\.env    # set OPENAI_API_KEY (or Azure OpenAI vars) + OPENAI_MODEL
-devui ui_agents --port 8080
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check .
 ```
-If `devui` isn't recognized (its console-script exe isn't on PATH), call the
-CLI's `main()` directly instead:
-```powershell
-python -c "import sys; sys.argv=['devui','ui_agents','--port','8080']; from agent_framework_devui._cli import main; main()"
-```
-Open **http://localhost:8080**. If prompted for an auth token, scroll up in
-the terminal to a line like `DEV TOKEN (localhost only, shown once): abc...`
-and paste that in — it's a session token DevUI generates each run, not your
-LLM key. Use `--no-auth` to skip this for local-only testing.
-
-If it loads but shows **"No agents or workflows found"**: you're either not
-running the command from the `solar-agent` folder (so it scanned an empty
-directory instead of `ui_agents`), or `ui_agents/.env` is missing a valid
-`OPENAI_API_KEY`/`OPENAI_MODEL` (each agent fails to construct and is
-silently skipped).
-
-## 5. Run the tests (no key needed)
-```powershell
-python -m pytest tests -q
-```
-
-## 6. Demo household & data used
-
-Synthetic, no real PII (`src/solar_agent/data/sample_user.json`):
-Alex Rivera, Redmond WA, 12×400W panels (4800W total), 30° tilt/south-facing,
-~28 kWh/day usage, remote-worker occupancy, time-of-use tariff, $15,600
-system cost.
-
-Fields the real app would collect from an actual user: location, roof
-tilt/azimuth, existing system size (or "none yet"), inverter capacity,
-average daily kWh + tariff type (never a real bill upload), occupancy
-pattern, appliance list, shading.
-
-## 7. Weather / Aurora status
-
-Default provider is **Open-Meteo** (free, live, no auth). Microsoft Aurora
-(via Azure AI Foundry, or open MIT-licensed weights on Hugging Face) is
-wired as a second provider behind the same interface
-(`src/solar_agent/skills/weather_forecast_skill.py`) but not yet active —
-see `docs/ARCHITECTURE.md` section 2 for the setup steps and trade-offs.
-
-## 8. Repo & docs map
-
-- `docs/ARCHITECTURE.md` — full design: Aurora decision gate, solar math,
-  agents/skills, security, task split
-- `src/solar_agent/skills/` — deterministic math (tested, no LLM)
-- `src/solar_agent/agents/` — LLM agent definitions
-- `src/solar_agent/web/` — demo dashboard (FastAPI + static JS/CSS)
-- `ui_agents/` — DevUI-discoverable entities for the full LLM chat UI
-- `tests/` — run with `pytest tests -q`
