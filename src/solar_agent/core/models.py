@@ -6,11 +6,11 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class ArraySection:
-    panel_count: int = 20
-    panel_watts: int = 400
-    tilt_degrees: float = 30.0
-    azimuth_degrees: float = 180.0
-    shading_percent: float = 5.0
+    panel_count: int
+    panel_watts: int
+    tilt_degrees: float
+    azimuth_degrees: float
+    shading_percent: float
 
     @property
     def dc_capacity_kw(self) -> float:
@@ -19,11 +19,9 @@ class ArraySection:
 
 @dataclass(frozen=True)
 class SolarSystem:
-    sections: tuple[ArraySection, ...] = field(
-        default_factory=lambda: (ArraySection(),)
-    )
-    inverter_ac_kw: float = 7.6
-    other_losses_percent: float = 9.0
+    sections: tuple[ArraySection, ...]
+    inverter_ac_kw: float
+    other_losses_percent: float
 
     @property
     def dc_capacity_kw(self) -> float:
@@ -40,10 +38,10 @@ class SolarSystem:
 
 @dataclass(frozen=True)
 class Household:
-    zip_code: str = "98052"
-    annual_consumption_kwh: float = 10_800
-    occupants: int = 2
-    work_from_home: bool = True
+    zip_code: str
+    annual_consumption_kwh: float
+    occupants: int
+    work_from_home: bool
 
 
 @dataclass(frozen=True)

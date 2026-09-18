@@ -44,9 +44,23 @@ def test_scheduler_and_battery_conserve_positive_flows() -> None:
 def test_mixed_panel_sections_are_combined() -> None:
     system = SolarSystem(
         sections=(
-            ArraySection(panel_count=10, panel_watts=400),
-            ArraySection(panel_count=4, panel_watts=430, azimuth_degrees=225),
-        )
+            ArraySection(
+                panel_count=10,
+                panel_watts=400,
+                tilt_degrees=30,
+                azimuth_degrees=180,
+                shading_percent=5,
+            ),
+            ArraySection(
+                panel_count=4,
+                panel_watts=430,
+                tilt_degrees=30,
+                azimuth_degrees=225,
+                shading_percent=5,
+            ),
+        ),
+        inverter_ac_kw=7.6,
+        other_losses_percent=9,
     )
     assert system.panel_count == 14
     assert system.dc_capacity_kw == 5.72

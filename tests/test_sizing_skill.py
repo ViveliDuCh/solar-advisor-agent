@@ -13,14 +13,26 @@ from solar_agent.skills.tariff_payback_skill import (  # noqa: E402
 
 
 def test_sizing_reasonable_panel_count():
-    result = estimate_panels_needed(avg_daily_consumption_kwh=28.0, peak_sun_hours=4.5)
+    result = estimate_panels_needed(
+        avg_daily_consumption_kwh=28.0,
+        peak_sun_hours=4.5,
+        panel_rated_w=400,
+        system_derate=0.8,
+        target_offset_pct=1.0,
+    )
     assert result["panels_needed"] > 0
     assert "explanation" in result
 
 
 def test_sizing_rejects_zero_sun_hours():
     with pytest.raises(ValueError):
-        estimate_panels_needed(avg_daily_consumption_kwh=28.0, peak_sun_hours=0)
+        estimate_panels_needed(
+            avg_daily_consumption_kwh=28.0,
+            peak_sun_hours=0,
+            panel_rated_w=400,
+            system_derate=0.8,
+            target_offset_pct=1.0,
+        )
 
 
 def test_tariff_profiles_listed():

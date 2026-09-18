@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
+from solar_agent.core.demo import load_demo_assumptions
+
 
 def simulate_household_change(
     change: Annotated[
@@ -39,17 +41,22 @@ def simulate_household_change(
         raise ValueError("Electricity rate must be non-negative")
 
     assumptions: list[str] = []
+    scenario_defaults = load_demo_assumptions()["scenario_defaults"]
     if change == "add_freezer":
-        delta_kwh = appliance_annual_kwh if appliance_annual_kwh is not None else 500.0
+        default_kwh = scenario_defaults["add_freezer_kwh_per_year"]
+        delta_kwh = appliance_annual_kwh if appliance_annual_kwh is not None else default_kwh
         if appliance_annual_kwh is None:
             assumptions.append(
-                "Uses 500 kWh/year as a demonstration assumption for one additional freezer."
+                f"Uses {default_kwh:,.0f} kWh/year from the versioned demo assumption catalog "
+                "for one additional freezer."
             )
     else:
-        delta_kwh = -(appliance_annual_kwh if appliance_annual_kwh is not None else 3_000.0)
+        default_kwh = scenario_defaults["electric_water_heater_kwh_per_year"]
+        delta_kwh = -(appliance_annual_kwh if appliance_annual_kwh is not None else default_kwh)
         if appliance_annual_kwh is None:
             assumptions.append(
-                "Uses 3,000 kWh/year as a demonstration assumption for electric water heating."
+                f"Uses {default_kwh:,.0f} kWh/year from the versioned demo assumption catalog "
+                "for electric water heating."
             )
 
     revised_consumption = max(annual_consumption_kwh + delta_kwh, 0)

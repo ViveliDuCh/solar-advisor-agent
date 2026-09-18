@@ -8,6 +8,7 @@ list once the LLM client is configured.
 Never store real utility bill uploads - only synthetic/example tariff
 profiles are used in this project (see data/tariff_profiles.json).
 """
+
 from __future__ import annotations
 
 import re

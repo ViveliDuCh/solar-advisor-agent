@@ -13,6 +13,7 @@ cares which one is active:
 Switch providers with the ``SOLAR_AGENT_WEATHER_PROVIDER`` env var
 ("open-meteo" | "aurora"); defaults to "open-meteo".
 """
+
 from __future__ import annotations
 
 import os
@@ -38,17 +39,13 @@ class HourlyForecast:
 
 
 class WeatherProvider(Protocol):
-    async def get_forecast(
-        self, lat: float, lon: float, hours: int
-    ) -> list[HourlyForecast]: ...
+    async def get_forecast(self, lat: float, lon: float, hours: int) -> list[HourlyForecast]: ...
 
 
 class OpenMeteoProvider:
     """Default provider: no auth required, good enough for a live demo."""
 
-    async def get_forecast(
-        self, lat: float, lon: float, hours: int = 48
-    ) -> list[HourlyForecast]:
+    async def get_forecast(self, lat: float, lon: float, hours: int = 48) -> list[HourlyForecast]:
         params = {
             "latitude": lat,
             "longitude": lon,
@@ -91,9 +88,7 @@ class AuroraFoundryProvider:
         self.token = os.environ.get("AURORA_FOUNDRY_TOKEN")
         self.blob_url = os.environ.get("AURORA_BLOB_SAS_URL")
 
-    async def get_forecast(
-        self, lat: float, lon: float, hours: int = 48
-    ) -> list[HourlyForecast]:
+    async def get_forecast(self, lat: float, lon: float, hours: int = 48) -> list[HourlyForecast]:
         raise NotImplementedError(
             "Aurora Foundry provider not wired yet - see TODO in this class "
             "and docs/ARCHITECTURE.md section 2. Falls back to OpenMeteoProvider "

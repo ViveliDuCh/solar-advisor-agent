@@ -1,4 +1,5 @@
 """Forecast/Optimization Agent: hourly output + appliance-timing suggestions."""
+
 from __future__ import annotations
 
 from agent_framework import Agent, SupportsChatGetResponse
@@ -14,10 +15,12 @@ appliance-timing advice for a household (e.g. "run the dishwasher at 1pm,
 you'll get ~80% of its power from solar that hour").
 
 Always call get_hourly_forecast first, then estimate_hourly_output with the
-household's panel wattage/tilt/azimuth, then suggest_appliance_windows with
-their appliance list. Report the P10/P50/P90 range, not a single number, and
-say plainly that estimates get less certain further into the future. Never
-invent wattage or irradiance figures yourself.
+household's explicit panel wattage, tilt, azimuth, inverter limit, and loss
+assumption, then suggest_appliance_windows with an explicit appliance list.
+If any required value is absent, ask the user rather than using a hidden
+default. Report the P10/P50/P90 range, not a single number, and say plainly
+that estimates get less certain further into the future. Never invent
+wattage or irradiance figures yourself.
 """
 
 

@@ -1,4 +1,5 @@
 """Sizing Agent: helps new users figure out how many panels they need."""
+
 from __future__ import annotations
 
 from agent_framework import Agent, SupportsChatGetResponse

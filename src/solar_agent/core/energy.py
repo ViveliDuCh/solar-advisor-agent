@@ -87,8 +87,8 @@ def household_load_profile(
     )
     hourly_target = nonflexible_energy / len(index)
     hour = index.hour.to_numpy()
-    morning = 0.75 * np.exp(-((hour - 7) / 2.1) ** 2)
-    evening = 1.25 * np.exp(-((hour - 19) / 2.8) ** 2)
+    morning = 0.75 * np.exp(-(((hour - 7) / 2.1) ** 2))
+    evening = 1.25 * np.exp(-(((hour - 19) / 2.8) ** 2))
     overnight = 0.40
     daytime = 0.28 + (0.22 if household.work_from_home else 0)
     shape = overnight + daytime + morning + evening

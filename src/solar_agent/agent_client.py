@@ -5,17 +5,16 @@ import os
 from agent_framework import SupportsChatGetResponse
 from dotenv import load_dotenv
 
+load_dotenv()
+
 
 class AgentConfigurationError(RuntimeError):
     pass
 
 
 def agent_framework_mode() -> str:
-    load_dotenv()
     if os.getenv("FOUNDRY_PROJECT_ENDPOINT") and os.getenv("FOUNDRY_MODEL"):
         return "foundry"
-    if os.getenv("OPENAI_API_KEY"):
-        return "openai"
     return "offline"
 
 
@@ -30,10 +29,6 @@ def create_chat_client() -> SupportsChatGetResponse:
             model=os.environ["FOUNDRY_MODEL"],
             credential=AzureCliCredential(),
         )
-    if mode == "openai":
-        from agent_framework.openai import OpenAIChatClient
-
-        return OpenAIChatClient()
     raise AgentConfigurationError(
         "Agent Framework is installed, but no chat model is configured. Set "
         "FOUNDRY_PROJECT_ENDPOINT and FOUNDRY_MODEL, then authenticate with Azure CLI."

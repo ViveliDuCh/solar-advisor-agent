@@ -104,12 +104,24 @@ def estimate_hourly_output(
         list[dict],
         Field(description="Output of get_hourly_forecast: list of {ghi_w_m2, temp_c, timestamp}"),
     ],
-    panel_tilt_deg: Annotated[float, Field(description="Roof/panel tilt in degrees")] = 30.0,
-    panel_azimuth_deg: Annotated[float, Field(description="Panel azimuth, 180=south")] = 180.0,
+    panel_tilt_deg: Annotated[float, Field(description="Roof/panel tilt in degrees")],
+    panel_azimuth_deg: Annotated[float, Field(description="Panel azimuth, 180=south")],
+    inverter_ac_kw: Annotated[
+        float,
+        Field(description="Explicit shared inverter maximum AC output in kW"),
+    ],
+    other_losses_percent: Annotated[
+        float,
+        Field(description="Explicit non-shading system loss assumption as a percentage"),
+    ],
 ) -> list[dict]:
     """Agent-callable tool: turn an hourly forecast into pvlib power estimates."""
     if panel_rated_w <= 0:
         raise ValueError("panel_rated_w must be positive")
+    if inverter_ac_kw <= 0:
+        raise ValueError("inverter_ac_kw must be positive")
+    if not 0 <= other_losses_percent < 100:
+        raise ValueError("other_losses_percent must be between 0 and 100")
     if not hourly_forecast:
         return []
 
@@ -124,7 +136,6 @@ def estimate_hourly_output(
         },
         index=index,
     )
-    dc_capacity_kw = panel_rated_w / 1000
     system = SolarSystem(
         sections=(
             ArraySection(
@@ -135,8 +146,8 @@ def estimate_hourly_output(
                 shading_percent=0,
             ),
         ),
-        inverter_ac_kw=max(dc_capacity_kw * 0.95, 0.1),
-        other_losses_percent=9,
+        inverter_ac_kw=inverter_ac_kw,
+        other_losses_percent=other_losses_percent,
     )
     modeled = estimate_solar_power(weather, system)
 
@@ -157,7 +168,8 @@ def estimate_hourly_output(
                 "p90_w": round(high_w, 1),
                 "explanation": (
                     "Uses pvlib solar position, plane-of-array irradiance, cell-temperature "
-                    f"derating, 9% other losses, a {system.inverter_ac_kw:.2f} kW inverter limit, "
+                    f"derating, {other_losses_percent:.1f}% other losses, a "
+                    f"{system.inverter_ac_kw:.2f} kW inverter limit, "
                     f"and +/-{uncertainty_fraction:.0%} forecast uncertainty."
                 ),
             }

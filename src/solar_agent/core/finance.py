@@ -17,4 +17,3 @@ def simple_financial_estimate(
         "annual_value": round(annual_value),
         "simple_payback_years": round(payback, 1) if payback else None,
     }
-

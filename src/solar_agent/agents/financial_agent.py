@@ -1,4 +1,5 @@
 """Financial Agent: payback/ROI using example tariff profiles (never a real bill)."""
+
 from __future__ import annotations
 
 from agent_framework import Agent, SupportsChatGetResponse

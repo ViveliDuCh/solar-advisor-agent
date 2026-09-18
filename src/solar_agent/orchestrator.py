@@ -78,8 +78,7 @@ async def handle_message(
 ) -> str:
     safe_message = redact_text(message)
     prompt = (
-        f"Current dashboard context:\n{dashboard_context}\n\n"
-        f"Homeowner question:\n{safe_message}"
+        f"Current dashboard context:\n{dashboard_context}\n\nHomeowner question:\n{safe_message}"
     )
     result = await build_advisor_agent().run(prompt, session=session)
     return result.text

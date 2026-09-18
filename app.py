@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime
 
 import numpy as np
@@ -11,7 +12,7 @@ from agent_framework import AgentSession
 
 from solar_agent.agent_client import agent_framework_mode
 from solar_agent.core.chat import AdvisorContext, answer_question
-from solar_agent.core.demo import demo_appliances, demo_household
+from solar_agent.core.demo import demo_appliances, demo_household, load_demo_assumptions
 from solar_agent.core.energy import (
     TIMEZONE,
     classify_appliance_usage,
@@ -45,11 +46,11 @@ def render_advisor_chat(context: AdvisorContext) -> None:
             "`FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_MODEL` are set."
         )
     else:
-        provider = "Microsoft Foundry" if mode == "foundry" else "OpenAI"
         st.success(
-            f"**Live multi-agent mode:** Microsoft Agent Framework is connected through "
-            f"{provider}. Questions are handed to Forecast, Financial, Maintenance, Safety, "
-            "or Sizing agents, which call deterministic tools for numbers."
+            "**Live multi-agent mode:** Microsoft Agent Framework calls the "
+            f"**{os.environ.get('FOUNDRY_MODEL', 'configured Foundry model')}** deployment. "
+            "Questions are handed to Forecast, Financial, Maintenance, Safety, or Sizing agents, "
+            "which call deterministic tools for numbers."
         )
     with st.expander("Exactly what feeds this chat"):
         st.markdown(
@@ -175,6 +176,10 @@ st.markdown(
 )
 
 with st.sidebar:
+    demo_assumptions = load_demo_assumptions()
+    household_defaults = demo_assumptions["household"]
+    system_defaults = demo_assumptions["solar_system"]
+    financial_defaults = demo_assumptions["financial"]
     st.header("Example household")
     st.caption(
         "The app starts with a synthetic grid-connected home in ZIP 98052. "
@@ -184,7 +189,7 @@ with st.sidebar:
         "Electricity used in one year",
         min_value=2_000,
         max_value=30_000,
-        value=10_800,
+        value=household_defaults["annual_consumption_kwh"],
         step=100,
         help="Measured in kWh. A real user can enter 12 monthly totals instead.",
     )
@@ -192,7 +197,7 @@ with st.sidebar:
         "Shared inverter maximum output (kW)",
         min_value=1.0,
         max_value=30.0,
-        value=7.6,
+        value=system_defaults["inverter_ac_kw"],
         step=0.1,
         help="This limits total solar AC output. It does not describe household circuit safety.",
     )
@@ -202,22 +207,13 @@ with st.sidebar:
         "Use one row for each group of panels that shares wattage, direction, tilt, and shading."
     )
     default_sections = pd.DataFrame(
-        [
-            {
-                "Panel count": 12,
-                "Watts each": 400,
-                "Tilt °": 30,
-                "Direction °": 180,
-                "Shading %": 4,
-            },
-            {
-                "Panel count": 8,
-                "Watts each": 400,
-                "Tilt °": 24,
-                "Direction °": 225,
-                "Shading %": 7,
-            },
-        ]
+        {
+            "Panel count": [item["panel_count"] for item in system_defaults["sections"]],
+            "Watts each": [item["panel_watts"] for item in system_defaults["sections"]],
+            "Tilt °": [item["tilt_degrees"] for item in system_defaults["sections"]],
+            "Direction °": [item["azimuth_degrees"] for item in system_defaults["sections"]],
+            "Shading %": [item["shading_percent"] for item in system_defaults["sections"]],
+        }
     )
     edited_sections = st.data_editor(
         default_sections,
@@ -238,14 +234,14 @@ with st.sidebar:
             "Illustrative value of electricity ($/kWh)",
             min_value=0.01,
             max_value=1.00,
-            value=0.14,
+            value=financial_defaults["electricity_rate_per_kwh"],
             step=0.01,
         )
         installed_cost = st.number_input(
             "Illustrative installed cost ($)",
             min_value=1_000,
             max_value=100_000,
-            value=24_000,
+            value=financial_defaults["installed_cost_usd"],
             step=500,
         )
 
@@ -273,7 +269,11 @@ household = household.__class__(
     occupants=household.occupants,
     work_from_home=True,
 )
-system = SolarSystem(sections=sections, inverter_ac_kw=float(inverter_ac_kw))
+system = SolarSystem(
+    sections=sections,
+    inverter_ac_kw=float(inverter_ac_kw),
+    other_losses_percent=system_defaults["other_losses_percent"],
+)
 appliances = demo_appliances(include_ev=True)
 
 start = pd.Timestamp(datetime.now(), tz=TIMEZONE).floor("h")
@@ -289,7 +289,9 @@ scheduled_kw, recommendations = schedule_appliances(frame, appliances)
 frame["optimized_load_kw"] = frame["base_load_kw"] + scheduled_kw
 frame["opportunity_score"] = opportunity_score(frame)
 
-simulated_underperformance_percent = 12
+simulated_underperformance_percent = demo_assumptions["maintenance"][
+    "simulated_underperformance_percent"
+]
 telemetry = simulate_inverter_telemetry(
     frame["solar_expected_kw"],
     simulated_underperformance_percent,
@@ -416,13 +418,9 @@ pivot = pivot.reindex(index=dates, columns=hours)
 custom = np.empty((len(dates), len(hours)), dtype=object)
 for row, date in enumerate(dates):
     for column, hour in enumerate(hours):
-        matches = heatmap_frame[
-            (heatmap_frame["date"] == date) & (heatmap_frame["hour"] == hour)
-        ]
+        matches = heatmap_frame[(heatmap_frame["date"] == date) & (heatmap_frame["hour"] == hour)]
         if matches.empty:
-            custom[row, column] = (
-                f"{date}, {hour}<br>Outside the rolling 48-hour forecast"
-            )
+            custom[row, column] = f"{date}, {hour}<br>Outside the rolling 48-hour forecast"
             continue
         record = matches.iloc[0]
         custom[row, column] = (

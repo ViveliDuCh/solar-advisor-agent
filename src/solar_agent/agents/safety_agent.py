@@ -5,6 +5,7 @@ vetted reference set (RAG) rather than freelancing electrical rules. The
 reference content below is a placeholder; replace with vetted NEC-adjacent
 guidance and manufacturer safety docs before using this for real advice.
 """
+
 from __future__ import annotations
 
 from agent_framework import Agent, SupportsChatGetResponse

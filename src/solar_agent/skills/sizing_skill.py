@@ -12,10 +12,6 @@ from typing import Annotated
 
 from pydantic import Field
 
-from solar_agent.skills.solar_output_skill import DEFAULT_SYSTEM_DERATE
-
-DEFAULT_PANEL_RATED_W = 400.0  # common residential panel wattage today
-
 
 @dataclass
 class SizingResult:
@@ -36,22 +32,23 @@ def estimate_panels_needed(
         float,
         Field(description="Peak sun hours/day for the location (from forecast/climate averages)"),
     ],
-    panel_rated_w: Annotated[
-        float, Field(description="Rated wattage per panel (STC)")
-    ] = DEFAULT_PANEL_RATED_W,
+    panel_rated_w: Annotated[float, Field(description="Rated wattage per panel (STC)")],
     system_derate: Annotated[
-        float, Field(description="System derate, 0.75-0.85 typical")
-    ] = DEFAULT_SYSTEM_DERATE,
+        float,
+        Field(description="Explicit modeled efficiency after system losses, expressed 0 to 1"),
+    ],
     target_offset_pct: Annotated[
         float, Field(description="Fraction of consumption to offset with solar, e.g. 1.0 = 100%")
-    ] = 1.0,
+    ],
 ) -> dict:
     """Agent-callable tool: recommend a panel count and total system size."""
     daily_output_per_panel_kwh = (panel_rated_w * peak_sun_hours * system_derate) / 1000.0
     target_daily_kwh = avg_daily_consumption_kwh * target_offset_pct
 
     if daily_output_per_panel_kwh <= 0:
-        raise ValueError("peak_sun_hours and panel_rated_w must be positive")
+        raise ValueError("peak_sun_hours, panel_rated_w, and system_derate must be positive")
+    if not 0 < target_offset_pct <= 1.5:
+        raise ValueError("target_offset_pct must be greater than 0 and no more than 1.5")
 
     panels_needed = max(1, round(target_daily_kwh / daily_output_per_panel_kwh + 0.49))
     total_system_w = panels_needed * panel_rated_w

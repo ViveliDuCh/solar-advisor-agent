@@ -3,6 +3,7 @@
 Reads telemetry through the DeviceAdapter interface, so it works identically
 against SimulatedInverterAdapter today and a real vendor adapter later.
 """
+
 from __future__ import annotations
 
 from typing import Annotated

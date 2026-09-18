@@ -10,15 +10,6 @@ from typing import Annotated
 
 from pydantic import Field
 
-DEFAULT_APPLIANCE_LIBRARY = {
-    "dishwasher": 1800,
-    "washing_machine": 500,
-    "clothes_dryer": 3000,
-    "ev_charger_level2": 7200,
-    "water_heater": 4000,
-    "air_conditioner": 3500,
-}
-
 
 def suggest_appliance_windows(
     hourly_output: Annotated[
@@ -27,22 +18,18 @@ def suggest_appliance_windows(
     ],
     appliance_watts: Annotated[
         dict[str, float],
-        Field(
-            description=(
-                "Appliance name -> running watts; defaults to "
-                "DEFAULT_APPLIANCE_LIBRARY when omitted"
-            )
-        ),
-    ] = None,
+        Field(description="Appliance name -> user-provided or catalog-disclosed running watts"),
+    ],
     top_n_windows: Annotated[
         int, Field(description="How many best hours to suggest per appliance")
     ] = 2,
 ) -> list[dict]:
     """Agent-callable tool: best hours to run each appliance this forecast window."""
-    appliances = appliance_watts or DEFAULT_APPLIANCE_LIBRARY
+    if not appliance_watts:
+        raise ValueError("appliance_watts is required; do not infer appliance power")
 
     suggestions = []
-    for name, watts in appliances.items():
+    for name, watts in appliance_watts.items():
         # Rank hours by how much of the appliance's draw is covered by p50 solar output.
         ranked = sorted(hourly_output, key=lambda h: h["p50_w"], reverse=True)[:top_n_windows]
         windows = []

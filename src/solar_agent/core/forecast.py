@@ -25,9 +25,7 @@ class SyntheticForecastProvider:
 
         daylight = np.maximum(0, np.sin(np.pi * (hour - 6) / 12))
         cloud_factor = np.clip(
-            0.76
-            + 0.18 * np.sin((hour + day * 3) * 0.65)
-            - 0.16 * (day % 2),
+            0.76 + 0.18 * np.sin((hour + day * 3) * 0.65) - 0.16 * (day % 2),
             0.30,
             1.0,
         )
@@ -89,9 +87,7 @@ class CachedAuroraForecastProvider:
         initialized_at = pd.Timestamp(
             data.attrs.get("initialized_at", subset.index[0])
         ).to_pydatetime()
-        generated_at = pd.Timestamp(
-            data.attrs.get("generated_at", subset.index[0])
-        ).to_pydatetime()
+        generated_at = pd.Timestamp(data.attrs.get("generated_at", subset.index[0])).to_pydatetime()
         metadata = ForecastMetadata(
             provider="Microsoft Aurora 1.5 on Foundry",
             mode=str(data.attrs.get("mode", "cached-era5")),

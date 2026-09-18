@@ -22,10 +22,7 @@ def simulate_inverter_telemetry(
 
 
 def diagnose_maintenance(telemetry: pd.DataFrame) -> dict[str, object]:
-    valid = telemetry[
-        telemetry["communication_ok"]
-        & (telemetry["expected_kw"] >= 0.25)
-    ]
+    valid = telemetry[telemetry["communication_ok"] & (telemetry["expected_kw"] >= 0.25)]
     if valid.empty:
         return {
             "status": "insufficient_data",
@@ -67,4 +64,3 @@ def diagnose_maintenance(telemetry: pd.DataFrame) -> dict[str, object]:
             "inverter, disconnect DC wiring, or access the roof."
         ),
     }
-

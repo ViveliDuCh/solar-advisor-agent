@@ -11,7 +11,7 @@ def test_freezer_scenario_reports_energy_and_cost_assumptions() -> None:
 
     assert result["revised_consumption_kwh"] == 11_300
     assert result["annual_cost_change_usd"] == 70
-    assert any("demonstration assumption" in item for item in result["assumptions"])
+    assert any("versioned demo assumption" in item for item in result["assumptions"])
 
 
 def test_gas_water_heater_scenario_does_not_go_below_zero() -> None:
