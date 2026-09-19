@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field
 
-from solar_agent.core.demo import load_demo_assumptions
+from solar_agent.demo.assumptions import load_demo_assumptions
 
 
 def simulate_household_change(

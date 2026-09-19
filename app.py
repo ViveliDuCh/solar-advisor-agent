@@ -11,9 +11,12 @@ import streamlit as st
 from agent_framework import AgentSession
 
 from solar_agent.agent_client import agent_framework_mode
-from solar_agent.core.chat import AdvisorContext, answer_question
-from solar_agent.core.demo import demo_appliances, demo_household, load_demo_assumptions
-from solar_agent.core.energy import (
+from solar_agent.demo.assumptions import (
+    demo_appliances,
+    demo_household,
+    load_demo_assumptions,
+)
+from solar_agent.domain.energy import (
     TIMEZONE,
     classify_appliance_usage,
     energy_flows,
@@ -22,11 +25,12 @@ from solar_agent.core.energy import (
     opportunity_score,
     schedule_appliances,
 )
-from solar_agent.core.finance import simple_financial_estimate
-from solar_agent.core.forecast import SyntheticForecastProvider
-from solar_agent.core.maintenance import diagnose_maintenance, simulate_inverter_telemetry
-from solar_agent.core.models import ArraySection, SolarSystem
+from solar_agent.domain.finance import simple_financial_estimate
+from solar_agent.domain.maintenance import diagnose_maintenance, simulate_inverter_telemetry
+from solar_agent.domain.models import ArraySection, SolarSystem
+from solar_agent.fallback.chat import AdvisorContext, answer_question
 from solar_agent.orchestrator import handle_message
+from solar_agent.providers.weather import SyntheticForecastProvider
 
 st.set_page_config(page_title="Solar Advisor AI", page_icon="☀️", layout="wide")
 
@@ -61,7 +65,7 @@ def render_advisor_chat(context: AdvisorContext) -> None:
             - **Illustrative electricity value:** ${context.electricity_rate:.2f}/kWh
             - **Weather source:** synthetic 48-hour demonstration forecast
             - **Agent runtime:** {mode}
-            - **Calculation tools:** deterministic Python skills and `src/solar_agent/core`
+            - **Calculation tools:** deterministic Python skills and `src/solar_agent/domain`
 
             No uploaded statement, personal utility account, or live inverter is being read.
             Before a live model receives a question, email addresses and phone numbers are

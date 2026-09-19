@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from solar_agent.core.models import (
+from solar_agent.domain.models import (
     Appliance,
     ArraySection,
     Battery,

@@ -1,4 +1,4 @@
-from solar_agent.core.chat import AdvisorContext, answer_question
+from solar_agent.fallback.chat import AdvisorContext, answer_question
 
 
 def context() -> AdvisorContext:

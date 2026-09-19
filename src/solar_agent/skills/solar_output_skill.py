@@ -17,8 +17,8 @@ from typing import Annotated
 import pandas as pd
 from pydantic import Field
 
-from solar_agent.core.energy import estimate_solar_power
-from solar_agent.core.models import ArraySection, SolarSystem
+from solar_agent.domain.energy import estimate_solar_power
+from solar_agent.domain.models import ArraySection, SolarSystem
 
 STC_IRRADIANCE_W_M2 = 1000.0
 DEFAULT_SYSTEM_DERATE = 0.80  # wiring/inverter/soiling/mismatch losses, 0.75-0.85 typical

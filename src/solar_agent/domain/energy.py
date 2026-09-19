@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from pvlib import irradiance, location, pvsystem, temperature
 
-from solar_agent.core.models import Appliance, ArraySection, Battery, Household, SolarSystem
+from solar_agent.domain.models import Appliance, ArraySection, Battery, Household, SolarSystem
 
 REDMOND_LATITUDE = 47.6740
 REDMOND_LONGITUDE = -122.1215

@@ -6,6 +6,7 @@ ui_agents/.env
 *.egg-info/
 .pytest_cache/
 .vscode/
+.vs/
 *.log
 
 # Never commit real personal data (utility bills, addresses, etc.)

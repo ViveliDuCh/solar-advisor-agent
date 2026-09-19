@@ -3,7 +3,7 @@
 ## Start the product
 
 ```powershell
-cd C:\Users\ebeltrnreyes\source\repos\solar-advisor-agent
+cd solar-advisor-agent
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
@@ -58,7 +58,10 @@ The primary weather source is currently synthetic. Aurora work remains in
 - `src\solar_agent\agent_client.py` — `FoundryChatClient` and GPT deployment
 - `src\solar_agent\agents\` — specialist agents
 - `src\solar_agent\skills\` — agent-callable deterministic tools
-- `src\solar_agent\core\` — calculation engine shared with the dashboard
+- `src\solar_agent\domain\` — real calculation engine shared with the dashboard
+- `src\solar_agent\providers\` — weather and future Aurora provider boundaries
+- `src\solar_agent\demo\` — disclosed example inputs
+- `src\solar_agent\fallback\` — local rule-based chat when Foundry is unavailable
 - `docs\ARCHITECTURE.md` — complete execution diagram
 
 ## Validate

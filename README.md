@@ -4,17 +4,35 @@ A consumer-focused solar advisor built with Microsoft Agent Framework,
 GPT-4.1-mini in Microsoft Foundry, deterministic solar calculations, and a
 Streamlit product UI.
 
-## Run
+## Clone and first-time setup
 
 ```powershell
-cd C:\Users\ebeltrnreyes\source\repos\solar-advisor-agent
+git clone <repository-url>
+cd solar-advisor-agent
 py -3.13 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-python -m streamlit run app.py
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-Open `http://localhost:8501`.
+If the repository is already cloned, start with `cd solar-advisor-agent`.
+The `.venv` directory persists after the terminal closes. Repeat this setup only
+when creating a fresh checkout or after the project dependencies change.
+
+## Start the app
+
+From the repository directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+No virtual-environment activation or package installation is required. Open
+`http://localhost:8501` if Streamlit does not open it automatically.
+
+PowerShell one-liner from the repository directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
 
 ## Foundry chat
 
@@ -34,8 +52,17 @@ Streamlit -> Agent Framework HandoffBuilder -> specialist Agent
           -> deterministic tool -> GPT-4.1-mini response
 ```
 
-Dashboard calculations run directly through the same deterministic core; the
-language model is called when a user submits a chat question.
+Dashboard calculations run directly through the deterministic domain functions;
+the language model is called when a user submits a chat question.
+
+## Code layout
+
+- `src\solar_agent\agents\` — Agent Framework specialist definitions
+- `src\solar_agent\skills\` — deterministic tools exposed to agents
+- `src\solar_agent\domain\` — real solar, household, finance, and maintenance calculations
+- `src\solar_agent\providers\` — synthetic weather and future Aurora provider boundaries
+- `src\solar_agent\demo\` — visible demonstration assumptions and fixture builders
+- `src\solar_agent\fallback\` — local rule-based chat used only when Foundry is unavailable
 
 ## Documentation
 
@@ -47,6 +74,6 @@ language model is called when a user submits a chat question.
 ## Tests
 
 ```powershell
-python -m pytest -q
-python -m ruff check .
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check .
 ```

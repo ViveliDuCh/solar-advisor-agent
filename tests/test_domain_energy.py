@@ -1,7 +1,7 @@
 import pandas as pd
 
-from solar_agent.core.demo import demo_appliances, demo_battery, demo_household, demo_system
-from solar_agent.core.energy import (
+from solar_agent.demo.assumptions import demo_appliances, demo_battery, demo_household, demo_system
+from solar_agent.domain.energy import (
     TIMEZONE,
     classify_appliance_usage,
     energy_flows,
@@ -9,8 +9,8 @@ from solar_agent.core.energy import (
     household_load_profile,
     schedule_appliances,
 )
-from solar_agent.core.forecast import SyntheticForecastProvider
-from solar_agent.core.models import ArraySection, SolarSystem
+from solar_agent.domain.models import ArraySection, SolarSystem
+from solar_agent.providers.weather import SyntheticForecastProvider
 
 
 def test_demo_system_is_eight_kw() -> None:

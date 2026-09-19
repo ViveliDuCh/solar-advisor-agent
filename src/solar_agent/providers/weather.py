@@ -7,7 +7,7 @@ from typing import Protocol
 import numpy as np
 import pandas as pd
 
-from solar_agent.core.models import ForecastMetadata
+from solar_agent.domain.models import ForecastMetadata
 
 
 class ForecastProvider(Protocol):

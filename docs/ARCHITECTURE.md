@@ -1,7 +1,7 @@
 # Solar Advisor architecture
 
-This document describes the code that actually runs on September 18, 2026.
-The repository has one product UI and one Agent Framework integration.
+This document describes the code in the current branch. The repository has one
+product UI and one Agent Framework integration.
 
 ## 1. Runtime overview
 
@@ -12,9 +12,12 @@ Browser
 Streamlit product UI (app.py, http://localhost:8501)
   |
   +-- page calculations -----------------------------------------------+
-  |   src/solar_agent/core                                             |
+  |   src/solar_agent/domain                                           |
   |   pvlib solar output, household load, scheduling, finance,         |
   |   maintenance simulation, confidence, and charts                   |
+  |                                                                   |
+  |   src/solar_agent/providers                                        |
+  |   synthetic weather and future Aurora artifact boundary            |
   |                                                                   |
   +-- user submits a chat question                                    |
       |                                                               |
@@ -73,10 +76,10 @@ and tools; Python tools calculate watts, kWh, dollars, and maintenance results.
    )
    ```
 
-4. The local `.env` currently identifies the `solar-advisor-ai` Foundry project
-   and `gpt-4.1-mini` deployment. The file is ignored by Git.
-5. Azure CLI authenticates `ebeltrnreyes@microsoft.com` as its guest identity
-   in the Foundry resource tenant.
+4. The local `.env` identifies the configured Foundry project and model
+   deployment. The file is ignored by Git.
+5. Azure CLI authenticates an identity that has access to the configured
+   Foundry project.
 
 This is GPT-4.1-mini accessed through Microsoft Foundry. It is not the ChatGPT
 consumer application and no OpenAI API key is used.
@@ -95,7 +98,10 @@ top-level `ui_agents` discovery wrappers were removed.
 | `SafetyAgent` | Explain conservative safety boundaries | No electrical design |
 | `SizingAgent` | Explain educational energy sizing | No; calls sizing tool |
 | `skills` | Agent-callable, deterministic operations | Yes |
-| `core` | Shared solar and household calculation engine used by UI and skills | Yes |
+| `domain` | Solar, household, finance, and maintenance calculations used by UI and skills | Yes |
+| `providers` | Weather input and future Aurora artifact boundaries | No household calculations |
+| `demo` | Loads disclosed example inputs from the assumption catalog | No calculations |
+| `fallback` | Rule-based local chat when Foundry is unavailable | Uses supplied dashboard results |
 
 An **agent** is the language-model reasoning layer: instructions, conversation
 context, handoffs, and tool selection. A **skill/tool** is ordinary Python that
@@ -120,7 +126,7 @@ array values for editing.
 | User input | Annual kWh, array sections, inverter limit, electricity rate | Passed into calculations and chat context |
 | Demo default | Appliance power/duration, freezer 500 kWh/year, water heating 3,000 kWh/year | Loaded from the catalog and explicitly disclosed |
 | Simulation | Synthetic weather, 12% inverter underperformance | Clearly labeled; never represented as measured |
-| Computed result | Solar output, opportunity score, cost change | Produced by deterministic core or tools |
+| Computed result | Solar output, opportunity score, cost change | Produced by deterministic domain functions or skills |
 
 Production behavior must replace a demo default with measured/user-provided
 data or show the default and confidence impact. The agent is instructed not to
@@ -170,7 +176,10 @@ src/solar_agent/
   orchestrator.py                   # Agent Framework handoff workflow
   agents/                           # five specialist Agent definitions
   skills/                           # deterministic Agent-callable tools
-  core/                             # shared solar/household engine
+  domain/                           # real solar, household, finance, and maintenance logic
+  providers/                        # weather and future Aurora boundaries
+  demo/                             # disclosed assumptions and fixture builders
+  fallback/                         # offline rule-based chat
   adapters/                         # simulated and future inverter boundaries
   security/                         # input redaction
   data/demo_assumptions.json        # visible demo defaults

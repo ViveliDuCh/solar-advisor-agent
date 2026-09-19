@@ -1,6 +1,6 @@
 import pandas as pd
 
-from solar_agent.core.maintenance import diagnose_maintenance, simulate_inverter_telemetry
+from solar_agent.domain.maintenance import diagnose_maintenance, simulate_inverter_telemetry
 
 
 def test_detects_sustained_underperformance() -> None:
