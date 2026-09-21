@@ -1,0 +1,73 @@
+{
+  "household": {
+    "zip_code": "98052",
+    "annual_consumption_kwh": 10800,
+    "occupants": 2,
+    "work_from_home": true
+  },
+  "solar_system": {
+    "inverter_ac_kw": 7.6,
+    "other_losses_percent": 9,
+    "sections": [
+      {
+        "panel_count": 12,
+        "panel_watts": 400,
+        "tilt_degrees": 30,
+        "azimuth_degrees": 180,
+        "shading_percent": 4
+      },
+      {
+        "panel_count": 8,
+        "panel_watts": 400,
+        "tilt_degrees": 24,
+        "azimuth_degrees": 225,
+        "shading_percent": 7
+      }
+    ]
+  },
+  "appliances": [
+    {
+      "name": "Washer",
+      "power_kw": 0.5,
+      "duration_hours": 1.0,
+      "earliest_hour": 8,
+      "latest_hour": 20
+    },
+    {
+      "name": "Dryer",
+      "power_kw": 4.5,
+      "duration_hours": 0.75,
+      "earliest_hour": 9,
+      "latest_hour": 21
+    },
+    {
+      "name": "Dishwasher",
+      "power_kw": 1.2,
+      "duration_hours": 1.5,
+      "earliest_hour": 10,
+      "latest_hour": 22
+    },
+    {
+      "name": "EV charging",
+      "power_kw": 7.2,
+      "duration_hours": 2.0,
+      "earliest_hour": 0,
+      "latest_hour": 23
+    }
+  ],
+  "financial": {
+    "electricity_rate_per_kwh": 0.14,
+    "installed_cost_usd": 24000
+  },
+  "maintenance": {
+    "simulated_underperformance_percent": 12
+  },
+  "scenario_defaults": {
+    "add_freezer_kwh_per_year": 500,
+    "electric_water_heater_kwh_per_year": 3000
+  },
+  "weather": {
+    "provider": "synthetic",
+    "hours": 48
+  }
+}

@@ -1,4 +1,5 @@
 """Unit tests for deterministic skills (no LLM/network required)."""
+
 import sys
 from pathlib import Path
 

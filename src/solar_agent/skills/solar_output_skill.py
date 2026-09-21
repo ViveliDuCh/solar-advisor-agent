@@ -8,12 +8,17 @@ Formulas per docs/ARCHITECTURE.md section 3:
                        x tilt/azimuth factor
                        x temp_derate(ambient, irradiance)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Annotated
 
+import pandas as pd
 from pydantic import Field
+
+from solar_agent.domain.energy import estimate_solar_power
+from solar_agent.domain.models import ArraySection, SolarSystem
 
 STC_IRRADIANCE_W_M2 = 1000.0
 DEFAULT_SYSTEM_DERATE = 0.80  # wiring/inverter/soiling/mismatch losses, 0.75-0.85 typical
@@ -75,13 +80,7 @@ def estimate_output_w(
     def power_at(irr: float) -> float:
         irr = max(0.0, irr)
         derate_t = _temp_derate(ambient_temp_c, irr)
-        return (
-            panel_rated_w
-            * (irr / STC_IRRADIANCE_W_M2)
-            * system_derate
-            * orientation
-            * derate_t
-        )
+        return panel_rated_w * (irr / STC_IRRADIANCE_W_M2) * system_derate * orientation * derate_t
 
     band = irradiance_uncertainty_pct / 100.0
     p10 = power_at(irradiance_w_m2 * (1 - band))
@@ -98,33 +97,81 @@ def estimate_output_w(
 
 
 def estimate_hourly_output(
-    panel_rated_w: Annotated[float, Field(description="Total rated wattage of installed panels (STC)")],
-    hourly_forecast: Annotated[
-        list[dict], Field(description="Output of get_hourly_forecast: list of {ghi_w_m2, temp_c, timestamp}")
+    panel_rated_w: Annotated[
+        float, Field(description="Total rated wattage of installed panels (STC)")
     ],
-    panel_tilt_deg: Annotated[float, Field(description="Roof/panel tilt in degrees")] = 30.0,
-    panel_azimuth_deg: Annotated[float, Field(description="Panel azimuth, 180=south")] = 180.0,
+    hourly_forecast: Annotated[
+        list[dict],
+        Field(description="Output of get_hourly_forecast: list of {ghi_w_m2, temp_c, timestamp}"),
+    ],
+    panel_tilt_deg: Annotated[float, Field(description="Roof/panel tilt in degrees")],
+    panel_azimuth_deg: Annotated[float, Field(description="Panel azimuth, 180=south")],
+    inverter_ac_kw: Annotated[
+        float,
+        Field(description="Explicit shared inverter maximum AC output in kW"),
+    ],
+    other_losses_percent: Annotated[
+        float,
+        Field(description="Explicit non-shading system loss assumption as a percentage"),
+    ],
 ) -> list[dict]:
-    """Agent-callable tool: turn an hourly forecast into hourly power estimates."""
+    """Agent-callable tool: turn an hourly forecast into pvlib power estimates."""
+    if panel_rated_w <= 0:
+        raise ValueError("panel_rated_w must be positive")
+    if inverter_ac_kw <= 0:
+        raise ValueError("inverter_ac_kw must be positive")
+    if not 0 <= other_losses_percent < 100:
+        raise ValueError("other_losses_percent must be between 0 and 100")
+    if not hourly_forecast:
+        return []
+
+    index = pd.DatetimeIndex(
+        pd.to_datetime([hour["timestamp"] for hour in hourly_forecast], utc=True)
+    )
+    weather = pd.DataFrame(
+        {
+            "ghi_wm2": [hour["ghi_w_m2"] for hour in hourly_forecast],
+            "temperature_c": [hour["temp_c"] for hour in hourly_forecast],
+            "wind_speed_ms": [hour.get("wind_speed_ms", 1.0) for hour in hourly_forecast],
+        },
+        index=index,
+    )
+    system = SolarSystem(
+        sections=(
+            ArraySection(
+                panel_count=1,
+                panel_watts=round(panel_rated_w),
+                tilt_degrees=panel_tilt_deg,
+                azimuth_degrees=panel_azimuth_deg,
+                shading_percent=0,
+            ),
+        ),
+        inverter_ac_kw=inverter_ac_kw,
+        other_losses_percent=other_losses_percent,
+    )
+    modeled = estimate_solar_power(weather, system)
+
     out = []
-    for i, hour in enumerate(hourly_forecast):
-        # Uncertainty widens with lead time: +-10% for hour 0, capped at +-40%.
-        uncertainty_pct = min(40.0, 10.0 + i * 0.6)
-        est = estimate_output_w(
-            panel_rated_w=panel_rated_w,
-            irradiance_w_m2=hour["ghi_w_m2"],
-            ambient_temp_c=hour["temp_c"],
-            panel_tilt_deg=panel_tilt_deg,
-            panel_azimuth_deg=panel_azimuth_deg,
-            irradiance_uncertainty_pct=uncertainty_pct,
+    for i, (timestamp, hour) in enumerate(modeled.iterrows()):
+        uncertainty_fraction = min(0.40, 0.10 + i * 0.006)
+        expected_w = float(hour["solar_expected_kw"]) * 1000
+        low_w = expected_w * (1 - uncertainty_fraction)
+        high_w = min(
+            expected_w * (1 + uncertainty_fraction),
+            system.inverter_ac_kw * 1000,
         )
         out.append(
             {
-                "timestamp": hour["timestamp"],
-                "p10_w": round(est.p10_w, 1),
-                "p50_w": round(est.p50_w, 1),
-                "p90_w": round(est.p90_w, 1),
-                "explanation": est.explanation,
+                "timestamp": timestamp.isoformat(),
+                "p10_w": round(low_w, 1),
+                "p50_w": round(expected_w, 1),
+                "p90_w": round(high_w, 1),
+                "explanation": (
+                    "Uses pvlib solar position, plane-of-array irradiance, cell-temperature "
+                    f"derating, {other_losses_percent:.1f}% other losses, a "
+                    f"{system.inverter_ac_kw:.2f} kW inverter limit, "
+                    f"and +/-{uncertainty_fraction:.0%} forecast uncertainty."
+                ),
             }
         )
     return out
